@@ -555,6 +555,15 @@ header .tile[data-q=ready]:not([data-zero]){--c:var(--ready);border-top-color:va
 header .tile:not([data-zero])[data-q=overdue] b,header .tile:not([data-zero])[data-q=hold] b,header .tile:not([data-zero])[data-q=ready] b{color:var(--c)}
 header .tile[aria-pressed="true"] b{color:var(--surface)!important}
 </style>
+<style>
+.ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block}
+.tile b{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tile b .ic{width:19px;height:19px;opacity:.75}
+.tile[aria-pressed="true"] b .ic{opacity:1}
+#setupBtn{display:inline-flex;align-items:center;justify-content:flex-start;gap:6px}
+.pagehead h2{display:flex;align-items:center;gap:9px}
+@media (max-width:640px){.tile b .ic{width:15px;height:15px}}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -562,7 +571,7 @@ header .tile[aria-pressed="true"] b{color:var(--surface)!important}
       <div class="topright"><nav class="tabs" id="tabs" aria-label="Sections"></nav><button class="menubtn" id="menuBtn" type="button" aria-expanded="false" aria-controls="hdrMenu"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="mlabel">Menu</span><i class="mwarn" id="mwarn" hidden></i></button>
         <div class="hdrmenu" id="hdrMenu" hidden>
           <div class="whoami" id="whoami"><label for="who">Working:</label><select id="who"></select></div>
-          <button class="mi" id="setupBtn" type="button" data-tab="setup" aria-pressed="false">Setup</button>
+          <button class="mi" id="setupBtn" type="button" data-tab="setup" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Setup</button>
           <div class="mrow"><button class="toolbtn icon" id="themeBtn" type="button" data-theme-toggle aria-label="Switch theme"></button><button class="toolbtn icon" id="snd" type="button"></button><div class="sync" role="status"><span class="dot busy" id="dot"></span><span id="syncTxt">Connecting…</span></div></div>
         </div></div>
     </div>
@@ -985,9 +994,13 @@ function caseForm(c,ctx){
 
 /* ---------- header ---------- */
 function openMenu(o=true){const m=$("#hdrMenu");if(!m)return;m.hidden=!o;$("#menuBtn").setAttribute("aria-expanded",String(o))}
+/* line icons, same set and style as the Supply Room */
+const IC={"plus": "<path d=\"M12 5v14M5 12h14\"/>", "list": "<path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "gear": "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"/>", "alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4M12 17h.01\"/>", "pause": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M10 9v6M14 9v6\"/>", "ready": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12.5 2.7 2.7L16 9.5\"/>", "active": "<path d=\"M3 12h4l3 8 4-16 3 8h4\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "home": "<path d=\"m3 11 9-8 9 8M5 10v10h14V10\"/>"};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}<\/svg>`;
+const TILE_IC={active:"active",out:"truck",overdue:"alert",ready:"ready",hold:"pause","911":"alert",today:"clock",inhouse:"home"};
 function renderHead(){
   /* the logo leads home (open cases); All cases shows every case, newest first */
-  const tabs=[["cases",'All<span class="nc"> cases</span>',null,"alltab"],["new",'+ New<span class="nc"> case</span>',null,"newtab"]];
+  const tabs=[["cases",ic("list")+'All<span class="nc"> cases</span>',null,"alltab"],["new",ic("plus")+'New<span class="nc"> case</span>',null,"newtab"]];
   $("#setupBtn").setAttribute("aria-pressed",String(S.tab==="setup"));
   $("#tabs").innerHTML=tabs.map(([k,l,n,cls])=>`<button data-tab="${k}" class="${cls}"${(k==="cases"?S.tab==="cases"&&isAllView():S.tab===k)?' aria-current="page"':""}>${l}${n!=null?`<span class="n">${n}</span>`:""}</button>`).join("");
   /* summary tiles live in the sticky header so they're on screen from Setup and New case too */
@@ -995,7 +1008,7 @@ function renderHead(){
   const n911=open.filter(is911).length;
   /* 🚨 = 911 cases, 📅 = cases that need a new delivery date; each tile shows the ones it counts */
   const tiles=[["active","Active",isActive],["out","Sent out",c=>!isIn(c)],["overdue","Overdue",c=>isLate(c)||is911(c)],["ready","Ready to deliver",isReady],["hold","On hold",c=>c.state==="hold"]].map(([k,l,f])=>{const cs=open.filter(f);return[k,l,cs.length,k==="overdue"?cs.filter(is911).length:0,cs.filter(seatPassed).length]});
-  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b><span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
+  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}${ic(TILE_IC[k])}</b><span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
   const me=getMe(),w=$("#who");
   if(document.activeElement!==w){
     const opts=[...S.team];if(me&&!opts.includes(me))opts.push(me);
@@ -1103,7 +1116,7 @@ function goHome(){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick=""}
 const fCount=()=>(S.fWhere!=="all")+(!!S.fType)+(S.fState!=="open");
 function pageTitle(){return {active:"Active cases",out:"Sent out",overdue:"Overdue",ready:"Ready to deliver",hold:"On hold","911":"911 cases",today:"Due today",inhouse:"In-house cases"}[S.fQuick]||{open:"Open cases",delivered:"Delivered cases",cancelled:"Cancelled cases",all:"All cases"}[S.fState]||"Cases"}
 function viewCases(){
-  return `<div class="pagehead"><h2>${pageTitle()}</h2>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
+  return `<div class="pagehead"><h2>${ic(TILE_IC[S.fQuick]||"list")}${pageTitle()}</h2>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
   ${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
   ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Sign in with the office password to save and share cases.</span></div>`:""}
   <div class="filters${S.fOpen||fCount()?" open":""}">
@@ -1124,7 +1137,7 @@ function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",t
 function autoDue(d){if(!d.dueAuto&&d.due)return;const x=defDue(d);if(!x)return;let v=addDays(todayISO(),x.n);if(d.seat&&v>d.seat)v=d.seat;d.due=v;d.dueAuto=true}
 function viewNew(){
   if(!S.draft)S.draft=freshDraft();
-  return `<div class="pagehead"><h2>New lab case</h2><button class="qlink" data-resetdraft>Start over</button></div>
+  return `<div class="pagehead"><h2>${ic("plus")}New lab case</h2><button class="qlink" data-resetdraft>Start over</button></div>
   <form class="card" data-form="new" id="newform">${caseForm(S.draft,"new")}
     ${S.draft.type?`<div class="hint">${pl(buildSteps(S.draft.type,S.draft.lab).length,"step")} will be added: ${esc(buildSteps(S.draft.type,S.draft.lab).map(s=>s.l).join(" → "))}</div>`:""}
     <div class="actions"><button class="btn pri" type="submit" style="flex:1;min-height:48px;font-size:16px">Save case</button></div>
@@ -1309,7 +1322,7 @@ async function wipeAll(btn){
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
-  return `<div class="pagehead"><h2>Setup</h2></div>
+  return `<div class="pagehead"><h2>${ic("gear")}Setup</h2></div>
   <div class="sechead"><h2>Team</h2><span class="hint">Initials show on every checked step</span></div>
   <div class="card"><div class="chips">${S.team.map(i=>`<span class="chip">${esc(i)}<button data-rmteam="${esc(i)}" aria-label="Remove ${esc(i)}">×</button></span>`).join("")||'<span class="hint">No one added yet.</span>'}</div>
     <form class="addline" id="addteam"><div class="f"><label for="newinit">Add initials</label><input id="newinit" maxlength="4" style="width:110px;text-transform:uppercase" required autocomplete="off"></div><button class="btn pri" type="submit">Add</button></form>
