@@ -526,8 +526,6 @@ header .hdr-date{display:inline}
 .logoprev img{display:block;max-height:56px;max-width:100%;width:auto}
 .custom-logo header .logo-icon img{max-width:130px;object-fit:contain}
 /* current page: solid fill, like the Supply Room's tabs */
-.tile[aria-pressed="true"]{background:var(--c);border-color:var(--c);box-shadow:0 2px 6px rgba(0,0,0,.22)}
-.tile[aria-pressed="true"] b,.tile[aria-pressed="true"]>span:not(.tbadges){color:var(--surface)}
 nav.tabs button.newtab:not([aria-current="page"]){background:var(--surface);color:var(--accent);border:2px solid var(--accent);box-shadow:none}
 nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(--accent-fg);border:2px solid var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.22)}
 #setupBtn[aria-pressed="true"],nav.tabs button.alltab[aria-current="page"]{box-shadow:0 2px 6px rgba(0,0,0,.22)}
@@ -545,22 +543,11 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 .pill.type[data-k],.pill.labp,.pill.in,.pill.remake{background:var(--sunk);color:var(--fg)}
 .tchip.kc[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .grp.cathead{background:var(--sunk)}
-header .tile{--c:var(--slate);border-top-color:var(--line)}
-header .tile b{color:var(--slate)}
-header .tile[data-q=overdue]:not([data-zero]){--c:var(--late);border-top-color:var(--late)}
-header .tile[data-q=hold]:not([data-zero]){--c:var(--hold);border-top-color:var(--hold)}
-header .tile[data-q=ready]:not([data-zero]){--c:var(--ready);border-top-color:var(--ready)}
-header .tile:not([data-zero])[data-q=overdue] b,header .tile:not([data-zero])[data-q=hold] b,header .tile:not([data-zero])[data-q=ready] b{color:var(--c)}
-header .tile[aria-pressed="true"] b{color:var(--surface)!important}
 </style>
 <style>
 .ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:inline-block}
-.tile b{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.tile b .ic{width:19px;height:19px;opacity:.75}
-.tile[aria-pressed="true"] b .ic{opacity:1}
 #setupBtn{display:inline-flex;align-items:center;justify-content:flex-start;gap:6px}
 .pagehead h2{display:flex;align-items:center;gap:9px}
-@media (max-width:640px){.tile b .ic{width:15px;height:15px}}
 </style>
 <style>
 .dlgwrap{position:fixed;inset:0;z-index:45;background:rgba(10,18,16,.5);display:grid;place-items:center;padding:16px}
@@ -569,6 +556,48 @@ header .tile[aria-pressed="true"] b{color:var(--surface)!important}
 .dlg p{margin:0;font-size:14.5px}
 .dlg .actions{justify-content:flex-end}
 .btn.danger.solid{background:var(--late);border-color:var(--late);color:var(--surface)}
+</style>
+<style>
+/* Supply Room look: tinted tiles, the selected tile goes solid with a ring and pointer, and the page takes its color */
+:root{--navy:#1c3466;--violet:#6a3fc4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--navy:#93b4ff;--violet:#b79cf2}}
+:root[data-theme="dark"]{--navy:#93b4ff;--violet:#b79cf2}
+html{--pg:var(--navy)}
+html[data-page=active],html[data-page=new],html[data-page=inhouse]{--pg:var(--accent)}
+html[data-page=out]{--pg:var(--violet)}
+html[data-page=overdue],html[data-page="911"]{--pg:var(--late)}
+html[data-page=ready]{--pg:var(--ready)}
+html[data-page=hold],html[data-page=today]{--pg:var(--hold)}
+html[data-page=setup]{--pg:var(--slate)}
+header{border-bottom:3px solid var(--pg)}
+header .band{gap:10px}
+header .tile[data-q=active]{--t:var(--accent)}
+header .tile[data-q=out]{--t:var(--violet)}
+header .tile[data-q=overdue]{--t:var(--late)}
+header .tile[data-q=ready]{--t:var(--ready)}
+header .tile[data-q=hold]{--t:var(--hold)}
+header .tile{display:flex;align-items:center;justify-content:center;gap:7px;min-height:48px;padding:6px 8px;border:2px solid var(--t);border-radius:14px;background:color-mix(in srgb,var(--t) 13%,var(--surface));color:var(--t)}
+header .tile:hover{border-color:var(--t);background:color-mix(in srgb,var(--t) 22%,var(--surface))}
+header .tile b{font-size:19px;line-height:1;color:inherit}
+header .tile>.ic{width:18px;height:18px}
+header .tile>span:not(.tbadges){font-size:15px;font-weight:800;letter-spacing:0;text-transform:none;color:inherit;line-height:1.1;text-align:center}
+header .tile[aria-pressed="true"],header .tile[aria-pressed="true"]:hover{background:var(--t);border-color:var(--t);color:var(--surface);box-shadow:0 0 0 3px var(--surface),0 0 0 6px var(--fg);z-index:1}
+header .tile[aria-pressed="true"]::after{content:"";position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);border:8px solid transparent;border-top-color:var(--fg)}
+nav.tabs button.alltab:not([aria-current="page"]){background:color-mix(in srgb,var(--navy) 10%,var(--surface));border-color:var(--navy);color:var(--navy)}
+nav.tabs button.alltab[aria-current="page"]{background:var(--navy);border-color:var(--navy);color:var(--surface)}
+.pagehead{padding:8px 14px;border-radius:12px;background:color-mix(in srgb,var(--pg) 13%,var(--surface));border-left:7px solid var(--pg);align-items:center}
+.pagehead h2{color:var(--pg);margin-right:auto}
+.pagehead .phn{font-family:var(--f-mono);font-weight:700;font-size:14px;color:var(--pg);white-space:nowrap}
+.pagehead .qlink{color:var(--pg)}
+@media (max-width:640px){
+  header .band{gap:6px}
+  header .tile{flex-wrap:wrap;gap:1px 4px;min-height:58px;padding:5px 3px;border-radius:11px}
+  header .tile b{font-size:17px}
+  header .tile>.ic{width:15px;height:15px}
+  header .tile>span:not(.tbadges){flex-basis:100%;font-size:11.5px}
+  header .tile[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--fg)}
+  header .tile[aria-pressed="true"]::after{bottom:-13px;border-width:6px}
+}
 </style>
 <header>
   <div class="wrap">
@@ -1005,6 +1034,7 @@ const IC={"plus": "<path d=\"M12 5v14M5 12h14\"/>", "list": "<path d=\"M8 6h13M8
 const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}<\/svg>`;
 const TILE_IC={active:"active",out:"truck",overdue:"alert",ready:"ready",hold:"pause","911":"alert",today:"clock",inhouse:"home"};
 function renderHead(){
+  document.documentElement.dataset.page=S.tab!=="cases"?S.tab:(S.fQuick||(S.fState==="all"?"all":"open"));
   /* the logo leads home (open cases); All cases shows every case, newest first */
   const tabs=[["cases",ic("list")+'All<span class="nc"> cases</span>',null,"alltab"],["new",ic("plus")+'New<span class="nc"> case</span>',null,"newtab"]];
   $("#setupBtn").setAttribute("aria-pressed",String(S.tab==="setup"));
@@ -1014,7 +1044,7 @@ function renderHead(){
   const n911=open.filter(is911).length;
   /* 🚨 = 911 cases, 📅 = cases that need a new delivery date; each tile shows the ones it counts */
   const tiles=[["active","Active",isActive],["out","Sent out",c=>!isIn(c)],["overdue","Overdue",c=>isLate(c)||is911(c)],["ready","Ready to deliver",isReady],["hold","On hold",c=>c.state==="hold"]].map(([k,l,f])=>{const cs=open.filter(f);return[k,l,cs.length,k==="overdue"?cs.filter(is911).length:0,cs.filter(seatPassed).length]});
-  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}${ic(TILE_IC[k])}</b><span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
+  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b>${ic(TILE_IC[k])}<span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
   const me=getMe(),w=$("#who");
   if(document.activeElement!==w){
     const opts=[...S.team];if(me&&!opts.includes(me))opts.push(me);
@@ -1073,6 +1103,7 @@ function renderList(){
   if(S.db&&!S.loaded.c){el.innerHTML=`<div class="empty">Loading cases…</div>`;return}
   if(!S.cases.length){el.innerHTML=`<div class="empty"><strong>No lab cases yet</strong>Tap <b>+ New case</b> to log the first one. Pick the patient, case type and tooth, and the step checklist is filled in for you.<div style="margin-top:12px"><button class="btn pri" data-tab="new">+ New case</button></div></div>`;return}
   const rows=filtered();
+  {const pn=$("#phN");if(pn)pn.textContent=pl(rows.length,"case")}
   const more=S.fState!=="open"&&S.moreOld?`<div class="moreold"><button class="btn" data-loadold>Load older cases</button><span class="hint">Showing the newest ${S.recentLimit} cases plus every open one.</span></div>`:"";
   if(!rows.length){el.innerHTML=`<div class="empty"><strong>No cases match</strong>Try clearing the search or filters.<div style="margin-top:10px"><button class="btn" data-clearf>Clear filters</button></div></div>`;return}
   const t=todayISO(),wk=addDays(t,7);
@@ -1122,7 +1153,7 @@ function goHome(){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick=""}
 const fCount=()=>(S.fWhere!=="all")+(!!S.fType)+(S.fState!=="open");
 function pageTitle(){return {active:"Active cases",out:"Sent out",overdue:"Overdue",ready:"Ready to deliver",hold:"On hold","911":"911 cases",today:"Due today",inhouse:"In-house cases"}[S.fQuick]||{open:"Open cases",delivered:"Delivered cases",cancelled:"Cancelled cases",all:"All cases"}[S.fState]||"Cases"}
 function viewCases(){
-  return `<div class="pagehead"><h2>${ic(TILE_IC[S.fQuick]||"list")}${pageTitle()}</h2>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
+  return `<div class="pagehead"><h2>${ic(TILE_IC[S.fQuick]||"list")}${pageTitle()}</h2><span class="phn" id="phN"></span>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
   ${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
   ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Sign in with the office password to save and share cases.</span></div>`:""}
   <div class="filters${S.fOpen||fCount()?" open":""}">
