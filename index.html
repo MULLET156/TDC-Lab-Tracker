@@ -526,6 +526,7 @@ header .hdr-date{display:inline}
 .logoprev img{display:block;max-height:56px;max-width:100%;width:auto}
 .custom-logo header .logo-icon img{max-width:130px;object-fit:contain}
 </style>
+<input type="file" id="filePick" tabindex="-1" aria-hidden="true" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
 <header>
   <div class="wrap">
     <div class="top">
@@ -1256,10 +1257,13 @@ async function uploadLogo(k,file){
   finally{S.logoBusy=null;render(true)}}
 function logoHTML(){const box=(k,title,hint)=>{const cur=S.logo[k],shown=cur||(k==="d"?S.logo.l||LOGO_FIRST("logo-d"):LOGO_FIRST("logo-l")),busy=S.logoBusy===k,off=S.canWrite&&!busy?"":"disabled";
     return `<div class="f"><span class="lbl">${title}</span><p class="hint">${hint}</p><div class="logoprev ${k==="d"?"dk":"lt"}"><img alt="${k==="d"?"Dark mode logo preview":"Logo preview"}" src="${shown}"></div>
-      <div class="actions"><label class="btn filebtn">${busy?"Uploading…":cur?"Replace…":"Upload…"}<input type="file" data-logofile="${k}" aria-label="${title}" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" ${off}></label>${cur?`<button class="btn" type="button" data-logoclear="${k}" ${off}>${k==="d"?"Remove":"Use the original"}</button>`:""}</div></div>`};
+      <div class="actions"><button class="btn" type="button" data-pick="logo-${k}" ${off}>${busy?"Uploading…":cur?"Replace…":"Upload…"}</button>${cur?`<button class="btn" type="button" data-logoclear="${k}" ${off}>${k==="d"?"Remove":"Use the original"}</button>`:""}</div></div>`};
   return `<div class="sechead"><h2>Logo</h2></div>
   <div class="card">${box("l","Logo","Shown at the top of every page for everyone. PNG, JPG, WebP, GIF or SVG; a wide logo on a transparent background looks best. It's shown about 56 px tall.")}
     ${box("d","Dark mode logo (optional)",S.logo.d?"Used instead of the logo above when the page is in Dark mode.":"For a logo that's hard to see on a dark background. Without one, Dark mode uses "+(S.logo.l?"your logo above.":"the original light-on-dark version."))}</div>`}
+/* one file input outside the page content, so a redraw can't remove it while the file dialog is open */
+let PICK="";
+function openPick(kind){const i=$("#filePick");PICK=kind;i.value="";i.accept=kind==="import"?".json,.csv,application/json,text/csv":"image/png,image/jpeg,image/webp,image/gif,image/svg+xml";i.click()}
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
@@ -1294,7 +1298,7 @@ function viewSetup(){
   <div class="card">
     <div class="f"><span class="lbl">Export</span><div class="actions">${S.dl?`<button class="btn" data-expjson>Full backup (.json)</button><button class="btn" data-expcsv>Cases spreadsheet (.csv)</button><button class="btn" data-explabs>Labs (.csv)</button>`:'<span class="hint">Downloads aren\'t available in this view.</span>'}</div></div>
     <div class="f"><span class="lbl">Import</span><p class="hint">Choose a full backup (.json) to restore it, or a spreadsheet (.csv) of cases with columns like Patient #, Patient, Date of birth, Case type, Made by, Teeth, Shade, Due, Status, Notes. You'll see what changes before anything is saved.</p>
-      <div class="actions"><label class="btn filebtn">Choose file…<input type="file" id="impfile" accept=".json,.csv,application/json,text/csv"></label></div>${imp}</div>
+      <div class="actions"><button class="btn" type="button" data-pick="import">Choose file…</button></div>${imp}</div>
   </div>
   <div class="sechead"><h2>This device</h2></div>
   <div class="card"><p class="hint">Signed in with the office password. Signing out only affects this phone or computer.</p><div class="actions"><button class="btn" data-signout>Sign out</button></div></div>`;
@@ -1496,6 +1500,7 @@ function toggleTeeth(cur,n,arch){
   return [...t].sort((a,b)=>a-b);
 }
 document.addEventListener("click",async ev=>{
+  {const pk=ev.target.closest&&ev.target.closest("[data-pick]");if(pk){if(!pk.disabled)openPick(pk.dataset.pick);return}}
   if(!ev.target.closest("#hdrMenu,#menuBtn"))openMenu(false);
   const b=ev.target.closest("button,[data-scrim],[data-home]");if(!b)return;
   if(b.id==="menuBtn"){openMenu($("#hdrMenu").hidden);return}
@@ -1614,8 +1619,7 @@ document.addEventListener("change",async ev=>{
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
   if(el.id==="fState"){S.fState=el.value;S.fQuick="";render(true);return}
-  if(el.dataset.logofile){const f=el.files&&el.files[0],k=el.dataset.logofile==="d"?"d":"l";el.value="";if(f)uploadLogo(k,f);return}
-  if(el.id==="impfile"){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f);el.value="";return}
+  if(el.id==="filePick"){const f=el.files&&el.files[0],k=PICK;if(!f)return;if(k==="import"){const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f)}else uploadLogo(k==="logo-d"?"d":"l",f);el.value="";return}
   /* step checkbox */
   if(ds.step!==undefined){
     const c=caseOf(S.panel);if(!c)return;const me=getMe();
