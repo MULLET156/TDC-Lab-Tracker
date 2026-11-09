@@ -564,6 +564,14 @@ header .tile[aria-pressed="true"] b{color:var(--surface)!important}
 .pagehead h2{display:flex;align-items:center;gap:9px}
 @media (max-width:640px){.tile b .ic{width:15px;height:15px}}
 </style>
+<style>
+.dlgwrap{position:fixed;inset:0;z-index:45;background:rgba(10,18,16,.5);display:grid;place-items:center;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;width:min(420px,100%);display:grid;gap:12px;box-shadow:0 12px 32px rgba(0,0,0,.25)}
+.dlg h3{margin:0;font-size:20px;font-weight:800;color:var(--slate)}
+.dlg p{margin:0;font-size:14.5px}
+.dlg .actions{justify-content:flex-end}
+.btn.danger.solid{background:var(--late);border-color:var(--late);color:var(--surface)}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -1308,6 +1316,23 @@ function logoHTML(){const box=(k,title,hint)=>{const cur=S.logo[k],shown=cur||(k
 /* one file input outside the page content, so a redraw can't remove it while the file dialog is open */
 let PICK="";
 function openPick(kind){const i=$("#filePick");PICK=kind;i.value="";i.accept=kind==="import"?".json,.csv,application/json,text/csv":"image/png,image/jpeg,image/webp,image/gif,image/svg+xml";i.click()}
+/* delete every case but keep the setup; the popup lives outside the page content so a redraw can't close it */
+let delBusy=false;
+function closeDelCases(){if(delBusy)return;$("#delcasesDlg")?.remove()}
+async function askDelCases(){
+  if(delBusy||!needDb())return;
+  let n;try{n=(await S.db.collection("cases").get()).docs.length}catch(e){writeFail(e);return}
+  if(!n){toast("There are no cases to delete.");return}
+  closeDelCases();
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="delcasesDlg"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Are you sure?</h3><p id="delcD">This permanently deletes ${pl(n,"case")} for everyone in the office. Labs, team, case types, lists and the logo are kept. This can't be undone.</p><div class="actions"><button class="btn" type="button" data-delcases-no id="delcNo">Cancel</button><button class="btn danger solid" type="button" data-delcases-go>Yes, delete all cases</button></div></div></div>`);
+  $("#delcNo").focus()}
+async function runDelCases(btn){
+  if(delBusy)return;delBusy=true;btn.disabled=true;btn.textContent="Deleting…";$("#delcNo").disabled=true;
+  try{for(;;){const docs=(await S.db.collection("cases").get()).docs;if(!docs.length)break;
+      if(typeof TDC!=="undefined"&&TDC.batch)await TDC.batch(docs.map(d=>({op:"delete",col:"cases",id:d.id})));else for(const d of docs)await S.db.doc("cases/"+d.id).delete()}
+    delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
+  catch(e){delBusy=false;closeDelCases();writeFail(e)}}
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
 let wiping=false,wipeLogo=false;
 async function wipeAll(btn){
   if(wiping||!needDb())return;
@@ -1357,6 +1382,8 @@ function viewSetup(){
   </div>
   <div class="sechead"><h2>This device</h2></div>
   <div class="card"><p class="hint">Signed in with the office password. Signing out only affects this phone or computer.</p><div class="actions"><button class="btn" data-signout>Sign out</button></div></div>
+  <div class="sechead"><h2>Delete cases</h2></div>
+  <div class="card"><p class="hint">Deletes every case, including delivered and cancelled ones, and keeps your labs, team, case types, lists and logo.</p><div class="actions"><button class="btn danger" type="button" data-delcases>Delete all cases</button></div></div>
   <div class="sechead"><h2>Start fresh</h2></div>
   <div class="card wipe"><p class="hint"><b>Permanently deletes every case, lab, team member, custom case type, list and color for everyone in the office.</b> This can't be undone, so download a backup first.</p>
     <div class="actions"><button class="btn" type="button" data-expjson>Download full backup first</button></div>
@@ -1663,6 +1690,9 @@ document.addEventListener("click",async ev=>{
   if(ds.impgo!==undefined){runImport();return}
   if(ds.signout!==undefined){TDC.logout();return}
   if(ds.logoclear){const k=ds.logoclear==="d"?"d":"l";if(!needDb())return;try{await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).delete();S.logo[k]=null;applyLogo();render(true);toast(k==="l"?"Logo removed.":"Dark mode logo removed.")}catch(e){writeFail(e)}return}
+  if(ds.delcases!==undefined){askDelCases();return}
+  if(ds.delcasesNo!==undefined){closeDelCases();return}
+  if(ds.delcasesGo!==undefined){runDelCases(b);return}
   if(ds.wipe!==undefined){wipeAll(b);return}
   if(ds.expjson!==undefined){const strip=o=>JSON.parse(JSON.stringify(o));save(`TDC lab cases backup ${todayISO()}.json`,JSON.stringify({app:"tdc-lab-cases",version:1,exportedAt:new Date().toISOString(),team:S.team,types:{types:TYPES(),outSteps:OUTSTEPS(),fieldDefs:FDEFS()},lists:listsNow(),colors:S.colors,labs:strip(S.labs),cases:strip(S.cases)},null,2));return}
   if(ds.expcsv!==undefined){const rows=S.cases.slice().sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));const cols=CASE_COLS();save(`TDC lab cases ${todayISO()}.csv`,[cols.map(c=>csvCell(c[0])).join(","),...rows.map(r=>cols.map(([,f])=>csvCell(f(r))).join(","))].join("\r\n"));return}
