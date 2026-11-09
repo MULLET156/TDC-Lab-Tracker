@@ -525,6 +525,13 @@ header .hdr-date{display:inline}
 .logoprev.lt{background:#fff}.logoprev.dk{background:#18242a}
 .logoprev img{display:block;max-height:56px;max-width:100%;width:auto}
 .custom-logo header .logo-icon img{max-width:130px;object-fit:contain}
+/* current page: solid fill, like the Supply Room's tabs */
+.tile[aria-pressed="true"]{background:var(--c);border-color:var(--c);box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.tile[aria-pressed="true"] b,.tile[aria-pressed="true"]>span:not(.tbadges){color:var(--surface)}
+nav.tabs button.newtab:not([aria-current="page"]){background:var(--surface);color:var(--accent);border:2px solid var(--accent);box-shadow:none}
+nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(--accent-fg);border:2px solid var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.22)}
+#setupBtn[aria-pressed="true"],nav.tabs button.alltab[aria-current="page"]{box-shadow:0 2px 6px rgba(0,0,0,.22)}
+.pagehead h2{font-size:26px}
 .wipecheck{display:flex;align-items:center;gap:8px;font-size:14px;margin:10px 0}
 .wipe .addline{align-items:flex-end}
 @media (min-width:641px){.brand b{white-space:nowrap}}
@@ -1075,8 +1082,10 @@ const isAllView=()=>!S.q&&S.fWhere==="all"&&!S.fType&&S.fState==="all"&&!S.fQuic
 const isHome=()=>!S.q&&S.fWhere==="all"&&!S.fType&&S.fState==="open"&&!S.fQuick;
 function goHome(){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick=""}
 const fCount=()=>(S.fWhere!=="all")+(!!S.fType)+(S.fState!=="open");
+function pageTitle(){return {active:"Active cases",out:"Sent out",overdue:"Overdue",ready:"Ready to deliver",hold:"On hold","911":"911 cases",today:"Due today",inhouse:"In-house cases"}[S.fQuick]||{open:"Open cases",delivered:"Delivered cases",cancelled:"Cancelled cases",all:"All cases"}[S.fState]||"Cases"}
 function viewCases(){
-  return `${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
+  return `<div class="pagehead"><h2>${pageTitle()}</h2>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
+  ${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
   ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Sign in with the office password to save and share cases.</span></div>`:""}
   <div class="filters${S.fOpen||fCount()?" open":""}">
     <input id="q" type="search" placeholder="Search name, patient #, tooth, shade…" value="${esc(S.q)}" aria-label="Search cases">
