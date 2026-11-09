@@ -532,8 +532,6 @@ nav.tabs button.newtab:not([aria-current="page"]){background:var(--surface);colo
 nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(--accent-fg);border:2px solid var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.22)}
 #setupBtn[aria-pressed="true"],nav.tabs button.alltab[aria-current="page"]{box-shadow:0 2px 6px rgba(0,0,0,.22)}
 .pagehead h2{font-size:26px}
-.wipecheck{display:flex;align-items:center;gap:8px;font-size:14px;margin:10px 0}
-.wipe .addline{align-items:flex-end}
 @media (min-width:641px){.brand b{white-space:nowrap}}
 </style>
 <input type="file" id="filePick" tabindex="-1" aria-hidden="true" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
@@ -1333,17 +1331,6 @@ async function runDelCases(btn){
     delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
   catch(e){delBusy=false;closeDelCases();writeFail(e)}}
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
-let wiping=false,wipeLogo=false;
-async function wipeAll(btn){
-  if(wiping||!needDb())return;
-  if(($("#wipeword")?.value||"").trim()!=="DELETE"){toast("Type DELETE to confirm.");$("#wipeword")?.focus();return}
-  const dropLogo=wipeLogo,keep=(col,id)=>col==="settings"&&/^logo-/.test(id)&&!dropLogo;
-  wiping=true;btn.disabled=true;btn.textContent="Deleting…";
-  try{for(const col of ["cases","labs","settings"]){
-      for(;;){const docs=(await S.db.collection(col).get()).docs.filter(d=>!keep(col,d.id));if(!docs.length)break;
-        await TDC.batch(docs.map(d=>({op:"delete",col,id:d.id})))}}
-    location.reload()}
-  catch(e){wiping=false;btn.disabled=false;btn.textContent="Delete everything";writeFail(e)}}
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
@@ -1383,12 +1370,7 @@ function viewSetup(){
   <div class="sechead"><h2>This device</h2></div>
   <div class="card"><p class="hint">Signed in with the office password. Signing out only affects this phone or computer.</p><div class="actions"><button class="btn" data-signout>Sign out</button></div></div>
   <div class="sechead"><h2>Delete cases</h2></div>
-  <div class="card"><p class="hint">Deletes every case, including delivered and cancelled ones, and keeps your labs, team, case types, lists and logo.</p><div class="actions"><button class="btn danger" type="button" data-delcases>Delete all cases</button></div></div>
-  <div class="sechead"><h2>Start fresh</h2></div>
-  <div class="card wipe"><p class="hint"><b>Permanently deletes every case, lab, team member, custom case type, list and color for everyone in the office.</b> This can't be undone, so download a backup first.</p>
-    <div class="actions"><button class="btn" type="button" data-expjson>Download full backup first</button></div>
-    <label class="wipecheck"><input type="checkbox" id="wipelogo" ${wipeLogo?"checked":""}> Also delete the uploaded logo</label>
-    <div class="addline"><div class="f"><label for="wipeword">Type DELETE to confirm</label><input id="wipeword" autocomplete="off" autocapitalize="characters" spellcheck="false" style="width:160px"></div><button class="btn danger" type="button" data-wipe>Delete everything</button></div></div>`;
+  <div class="card"><p class="hint">Deletes every case, including delivered and cancelled ones, and keeps your labs, team, case types, lists and logo.</p><div class="actions"><button class="btn danger" type="button" data-delcases>Delete all cases</button></div></div>`;
 }
 /* Case options boxes: dragged order is kept in settings/lists.optOrder; case details can be deleted from their row */
 function arrangeOpts(html){
@@ -1693,7 +1675,6 @@ document.addEventListener("click",async ev=>{
   if(ds.delcases!==undefined){askDelCases();return}
   if(ds.delcasesNo!==undefined){closeDelCases();return}
   if(ds.delcasesGo!==undefined){runDelCases(b);return}
-  if(ds.wipe!==undefined){wipeAll(b);return}
   if(ds.expjson!==undefined){const strip=o=>JSON.parse(JSON.stringify(o));save(`TDC lab cases backup ${todayISO()}.json`,JSON.stringify({app:"tdc-lab-cases",version:1,exportedAt:new Date().toISOString(),team:S.team,types:{types:TYPES(),outSteps:OUTSTEPS(),fieldDefs:FDEFS()},lists:listsNow(),colors:S.colors,labs:strip(S.labs),cases:strip(S.cases)},null,2));return}
   if(ds.expcsv!==undefined){const rows=S.cases.slice().sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));const cols=CASE_COLS();save(`TDC lab cases ${todayISO()}.csv`,[cols.map(c=>csvCell(c[0])).join(","),...rows.map(r=>cols.map(([,f])=>csvCell(f(r))).join(","))].join("\r\n"));return}
   if(ds.explabs!==undefined){save(`TDC labs ${todayISO()}.csv`,[LAB_COLS.map(c=>csvCell(c[0])).join(","),...S.labs.map(l=>LAB_COLS.map(([,k])=>csvCell(l[k])).join(","))].join("\r\n"));return}
@@ -1711,7 +1692,6 @@ document.addEventListener("change",async ev=>{
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
   if(el.id==="fState"){S.fState=el.value;S.fQuick="";render(true);return}
-  if(el.id==="wipelogo"){wipeLogo=el.checked;return}
   if(el.id==="filePick"){const f=el.files&&el.files[0],k=PICK;if(!f)return;if(k==="import"){const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f)}else uploadLogo(k==="logo-d"?"d":"l",f);el.value="";return}
   /* step checkbox */
   if(ds.step!==undefined){
