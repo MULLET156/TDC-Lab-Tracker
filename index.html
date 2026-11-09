@@ -599,6 +599,63 @@ nav.tabs button.alltab[aria-current="page"]{background:var(--navy);border-color:
   header .tile[aria-pressed="true"]::after{bottom:-13px;border-width:6px}
 }
 </style>
+<style>
+/* compact header like the Supply Room: logo beside the title; title bar and search live in the header; phones get a bottom tab bar */
+#hdrSlot{display:grid;gap:8px}
+#hdrSlot:empty{display:none}
+#hdrSlot .pagehead{padding:4px 14px}
+#hdrSlot .pagehead h2{font-size:23px}
+#hdrSlot .filters{margin:0}
+header .tmore{display:none!important}
+header .tile .sh{display:none}
+header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:inherit}
+@media (min-width:641px){
+  header .wrap{padding-block:8px;gap:8px}
+  .brand{display:flex!important;align-items:center;gap:24px}
+  .brand .logo{margin:0}
+  .brand .logo img{height:46px}
+  .brand b{font-size:30px}
+  .title-row{gap:2px!important}
+  .topright{row-gap:6px!important;padding-top:0!important}
+  header .top{align-items:center!important}
+}
+@media (max-width:640px){
+  main .wrap{padding-bottom:96px}
+  header .wrap{padding-block:6px!important;gap:6px!important}
+  header .top{flex-wrap:nowrap!important;align-items:center!important;gap:8px}
+  .brand{display:flex!important;align-items:center;gap:8px;min-width:0}
+  header .logo{margin:0!important}
+  header .logo img{height:28px!important}
+  .brand b{font-size:18px!important}
+  header .hdr-date{display:none!important}
+  .topright{width:auto!important;flex-wrap:nowrap!important;margin-left:auto!important;justify-content:flex-end!important;gap:6px!important}
+  .topright::after{display:none!important}
+  .hdrmenu .mrow,#setupBtn,nav.tabs button.alltab{display:none!important}
+  .hdrmenu .whoami{padding:0!important;background:none;border:0}
+  .whoami label{display:none}
+  .whoami select{width:66px;min-height:38px}
+  header nav.tabs button.newtab{min-height:38px!important;padding:0 10px!important}
+  #hdrSlot{gap:6px}
+  #hdrSlot .pagehead{padding:4px 10px;border-left-width:5px;border-radius:9px}
+  #hdrSlot .pagehead h2{font-size:17px;gap:6px}
+  #hdrSlot .pagehead .phn{font-size:13px}
+  #hdrSlot .pagehead .qlink{font-size:12.5px;padding:0}
+  header .band{position:fixed;left:0;right:0;bottom:0;z-index:25;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;padding:5px 5px calc(5px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.08)}
+  header .tile,header .tile:hover{position:relative;flex-direction:column;flex-wrap:nowrap;justify-content:center;gap:2px;min-height:52px;padding:4px 1px;border:0;border-radius:10px;background:transparent;color:var(--slate);box-shadow:none}
+  header .tile>.ic{width:23px;height:23px}
+  header .tile>span:not(.tbadges){flex-basis:auto;font-size:11px;font-weight:700}
+  header .tile .lg{display:none}
+  header .tile .sh{display:inline}
+  header .tile b{position:absolute;top:1px;left:calc(50% + 6px);min-width:18px;padding:2px 4px;border-radius:999px;background:var(--t);color:var(--surface);font-size:11px;text-align:center}
+  header .tile[data-zero] b{display:none}
+  header .tile[aria-pressed="true"],header .tile[aria-pressed="true"]:hover{background:color-mix(in srgb,var(--t) 16%,var(--surface));color:var(--t);box-shadow:none}
+  header .tile[aria-pressed="true"]::after,header .tile .tbadges{display:none}
+  header .tmore{display:flex!important;--t:var(--slate)}
+}
+.dlgwrap.sheet{place-items:end center;padding:0}
+.dlgwrap.sheet .dlg{width:100%;max-width:480px;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.dlg .mgo{justify-content:flex-start;min-height:48px;font-size:16px}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -611,6 +668,7 @@ nav.tabs button.alltab[aria-current="page"]{background:var(--navy);border-color:
         </div></div>
     </div>
     <div class="band" id="band" aria-label="Case summary"></div>
+    <div id="hdrSlot"></div>
   </div>
 </header>
 <main><div class="wrap" id="view"></div></main>
@@ -1032,7 +1090,17 @@ function openMenu(o=true){const m=$("#hdrMenu");if(!m)return;m.hidden=!o;$("#men
 /* line icons, same set and style as the Supply Room */
 const IC={"plus": "<path d=\"M12 5v14M5 12h14\"/>", "list": "<path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/>", "truck": "<path d=\"M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14\"/><circle cx=\"17\" cy=\"18\" r=\"2\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/>", "gear": "<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z\"/>", "alert": "<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3\"/><path d=\"M12 9v4M12 17h.01\"/>", "pause": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M10 9v6M14 9v6\"/>", "ready": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12.5 2.7 2.7L16 9.5\"/>", "active": "<path d=\"M3 12h4l3 8 4-16 3 8h4\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "check": "<path d=\"M20 6 9 17l-5-5\"/>", "home": "<path d=\"m3 11 9-8 9 8M5 10v10h14V10\"/>"};
 const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||""}<\/svg>`;
+IC.menu='<path d="M4 7h16M4 12h16M4 17h16"/>';IC.moon='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>';IC.sound='<path d="M11 5 6 9H3v6h3l5 4zM16 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>';
 const TILE_IC={active:"active",out:"truck",overdue:"alert",ready:"ready",hold:"pause","911":"alert",today:"clock",inhouse:"home"};
+/* phones: More sheet for what doesn't fit in the bottom tab bar */
+function closeMore(){$("#moreDlg")?.remove()}
+function openMore(){if($("#moreDlg"))return;
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap sheet" id="moreDlg"><div class="dlg" role="dialog" aria-modal="true" aria-label="More"><h3>More</h3>${[["all","list","All cases"],["setup","gear","Setup"],["theme","moon","Light or dark"],["snd","sound","Sound on or off"]].map(([k,i,l])=>`<button class="btn mgo" type="button" data-more-go="${k}">${ic(i)}${l}</button>`).join("")}<button class="btn" type="button" data-more-go="close">Close</button></div></div>`)}
+document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
+  if(t.closest("[data-more]")){openMore();return}
+  if(t.id==="moreDlg"){closeMore();return}
+  const g=t.closest("[data-more-go]");if(!g)return;const k=g.dataset.moreGo;closeMore();
+  ({all:()=>$('#tabs [data-tab="cases"]').click(),setup:()=>$("#setupBtn").click(),theme:()=>$("#themeBtn").click(),snd:()=>$("#snd").click()}[k]||(()=>{}))()});
 function renderHead(){
   document.documentElement.dataset.page=S.tab!=="cases"?S.tab:(S.fQuick||(S.fState==="all"?"all":"open"));
   /* the logo leads home (open cases); All cases shows every case, newest first */
@@ -1044,7 +1112,8 @@ function renderHead(){
   const n911=open.filter(is911).length;
   /* 🚨 = 911 cases, 📅 = cases that need a new delivery date; each tile shows the ones it counts */
   const tiles=[["active","Active",isActive],["out","Sent out",c=>!isIn(c)],["overdue","Overdue",c=>isLate(c)||is911(c)],["ready","Ready to deliver",isReady],["hold","On hold",c=>c.state==="hold"]].map(([k,l,f])=>{const cs=open.filter(f);return[k,l,cs.length,k==="overdue"?cs.filter(is911).length:0,cs.filter(seatPassed).length]});
-  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b>${ic(TILE_IC[k])}<span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
+  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b>${ic(TILE_IC[k])}<span><span class="lg">${l}</span><span class="sh">${k==="ready"?"Ready":k==="out"?"Sent":l}</span></span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
+  $("#band").insertAdjacentHTML("beforeend",`<button class="tile tmore" type="button" data-more aria-label="More">${ic("menu")}<span>More</span></button>`);
   const me=getMe(),w=$("#who");
   if(document.activeElement!==w){
     const opts=[...S.team];if(me&&!opts.includes(me))opts.push(me);
@@ -1494,8 +1563,9 @@ function render(force){
   if(S.dragging)return;
   renderHead();
   const v=$("#view");
-  if(force||lastTab!==S.tab||!busy(v)){
+  if(force||lastTab!==S.tab||(!busy(v)&&!busy($("#hdrSlot")))){
     v.innerHTML=S.tab==="cases"?viewCases():S.tab==="new"?viewNew():viewSetup();
+    {const sl=$("#hdrSlot");sl.textContent="";v.querySelectorAll(":scope>.pagehead,:scope>.filters").forEach(e=>sl.appendChild(e))}
     lastTab=S.tab;
   }
   if(S.tab==="cases")renderList();
