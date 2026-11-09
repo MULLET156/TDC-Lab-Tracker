@@ -1,6 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>TDC LAB TRACKER</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -502,6 +501,25 @@ header .hdr-date{display:inline}
 }
 </style>
 
+<style>
+#signin{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.sg-card{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 22px;display:flex;flex-direction:column;gap:16px;box-shadow:0 12px 32px rgba(0,0,0,.08)}
+.sg-brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.sg-brand .logo{display:block!important;margin:0 0 6px}
+.sg-brand .logo img{height:96px;width:auto;margin:0 auto}
+.sg-brand h1{margin:0;font-weight:800;font-size:28px;line-height:1.05}
+.sg-brand p{margin:0;color:var(--muted);font-size:14px}
+#signinForm{display:flex;flex-direction:column;gap:10px}
+#signinForm label{font-size:13px;font-weight:600;color:var(--muted)}
+#signinForm input{border:1px solid var(--line);background:var(--sunk);border-radius:9px;padding:11px 12px;font-size:16px}
+#signinForm button{min-height:44px;font-size:15px}
+#signinMsg{min-height:1.2em;margin:0;color:var(--late);font-size:13.5px;font-weight:600}
+.sg-note{margin:0;font-size:12.5px;color:var(--muted)}
+</style>
+<div id="signin" hidden><div class="sg-card"><div class="sg-brand"><h1>Lab Tracker</h1><p>Toledo Dental Care</p></div>
+  <form id="signinForm" autocomplete="on"><label for="signinPw">Office password</label><input type="password" id="signinPw" name="password" autocomplete="current-password" required><button class="btn pri" type="submit">Sign in</button></form>
+  <p id="signinMsg" role="alert"></p><p class="sg-note">This device stays signed in for 90 days. Sign out under Setup.</p></div></div>
+
 <header>
   <div class="wrap">
     <div class="top">
@@ -520,6 +538,126 @@ header .hdr-date{display:inline}
 <div id="panelRoot"></div>
 <datalist id="dl-shade"></datalist><datalist id="dl-material"></datalist><datalist id="dl-implantSystem"></datalist><datalist id="dl-gumShade"></datalist><datalist id="dl-doctor"></datalist>
 
+<script>
+/* ---------- hosted data store: talks to api.php, signs in with the office password ---------- */
+window.TDC=(function(){
+  const API="api.php";
+  let lastRev=-1,signedOutHook=null,pollT=null,refreshT=null,busy=false;
+  const listeners=new Set();
+  function E(code,message){return {code,message}}
+  /* Shared hosting allows only a few database connections at once, so a "busy" answer
+     is retried. "add" is only retried when the server never reached the database. */
+  async function call(op,payload){
+    for(let attempt=0;;attempt++){
+      try{return await call1(op,payload)}
+      catch(e){
+        const busy=e.code==="db_busy"||e.code==="db_connect"||(e.code==="unavailable"&&op!=="add"&&op!=="login");
+        if(!busy||attempt>=3)throw e.code==="db_busy"||e.code==="db_connect"?E("unavailable","The server was busy and couldn't save. Try again in a moment."):e;
+        await new Promise(r=>setTimeout(r,400*(attempt+1)+Math.random()*300));
+      }
+    }
+  }
+  async function call1(op,payload){
+    let r,j;
+    try{r=await fetch(API,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","X-TDC":"1"},body:JSON.stringify({op,...(payload||{})})})}
+    catch(e){throw E("unavailable","No connection to the server.")}
+    try{j=await r.json()}catch(e){throw E("unavailable","The server sent an unexpected reply.")}
+    if(!j||!j.ok){
+      const err=(j&&j.error)||"unavailable";
+      if(err==="signed_out"&&signedOutHook)signedOutHook();
+      const map={invalid_argument:"invalid_argument",too_large:"invalid_argument",signed_out:"signed_out",not_configured:"not_configured",wrong_password:"wrong_password",too_many:"too_many",db_busy:"db_busy",db_connect:"db_connect"};
+      throw E(map[err]||"unavailable",(j&&j.message)||"Something went wrong.");
+    }
+    if(typeof j.rev==="number"&&j.rev>lastRev)lastRev=j.rev;
+    return j;
+  }
+  const meta={fromCache:false,hasPendingWrites:false};
+  const docSnap=(id,exists,data)=>({id,exists,data:()=>exists?data:undefined,metadata:meta});
+  const qSnap=docs=>({docs,size:docs.length,empty:!docs.length,docChanges:()=>[],metadata:meta});
+  function split(path){const p=String(path).split("/");if(p.length!==2)throw new TypeError("Document paths look like collection/id");return p}
+
+  function runListener(L){
+    const p=L.kind==="doc"
+      ?call("get",{col:L.col,id:L.id}).then(j=>docSnap(L.id,j.exists,j.data||{}))
+      :call("query",{col:L.col,where:L.q.where,orderBy:L.q.orderBy,limit:L.q.limit}).then(j=>qSnap(j.docs.map(d=>docSnap(d.id,true,d.data))));
+    return p.then(s=>{if(listeners.has(L))L.next(s)},e=>{if(listeners.has(L)&&L.err)L.err(e)});
+  }
+  function readOf(L){return L.kind==="doc"?{kind:"get",col:L.col,id:L.id}:{kind:"query",col:L.col,where:L.q.where,orderBy:L.q.orderBy,limit:L.q.limit}}
+  function deliver(L,res){if(!listeners.has(L))return;if(L.kind==="doc")L.next(docSnap(L.id,res.exists,res.data||{}));else L.next(qSnap(res.docs.map(d=>docSnap(d.id,true,d.data))))}
+  function refreshAll(){
+    if(busy)return refreshSoon();busy=true;
+    const Ls=[...listeners];
+    return call("multi",{reads:Ls.map(readOf)}).then(j=>{Ls.forEach((L,i)=>deliver(L,j.results[i]))},e=>{for(const L of Ls)if(listeners.has(L)&&L.err)L.err(e)}).finally(()=>{busy=false});
+  }
+  function refreshSoon(){clearTimeout(refreshT);refreshT=setTimeout(refreshAll,60)}
+  async function poll(){
+    try{const j=await call("rev");if(j.rev!==undefined&&j.rev!==pollRev){pollRev=j.rev;await refreshAll()}}
+    catch(e){for(const L of listeners)if(L.err&&L.kind==="query"&&L.col==="cases")L.err(e)}
+  }
+  let pollRev=-1;
+  function schedule(){clearTimeout(pollT);pollT=setTimeout(async()=>{await poll();schedule()},document.visibilityState==="visible"?6000:30000)}
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){poll();schedule()}});
+  window.addEventListener("online",()=>{poll()});
+
+  async function write(op,payload){const j=await call(op,payload);pollRev=lastRev;refreshSoon();return j}
+  function docRef(col,id){
+    return {id,path:col+"/"+id,
+      get:()=>call("get",{col,id}).then(j=>docSnap(id,j.exists,j.data||{})),
+      set:d=>write("set",{col,id,data:d}).then(()=>{}),
+      update:d=>write("update",{col,id,data:d}).then(()=>{}),
+      delete:()=>write("delete",{col,id}).then(()=>{}),
+      onSnapshot(next,err){const L={kind:"doc",col,id,next,err};listeners.add(L);refreshSoon();return()=>listeners.delete(L)}};
+  }
+  function query(col,q){
+    return {path:col,
+      where:(f,op,v)=>query(col,{...q,where:[...q.where,[f,op,v]]}),
+      orderBy:(f,dir)=>query(col,{...q,orderBy:[f,dir||"asc"]}),
+      limit:n=>query(col,{...q,limit:n}),
+      get:()=>call("query",{col,where:q.where,orderBy:q.orderBy,limit:q.limit}).then(j=>qSnap(j.docs.map(d=>docSnap(d.id,true,d.data)))),
+      onSnapshot(next,err){const L={kind:"query",col,q,next,err};listeners.add(L);refreshSoon();return()=>listeners.delete(L)},
+      doc:id=>docRef(col,id),
+      add:d=>write("add",{col,data:d}).then(j=>docRef(col,j.id))};
+  }
+  const db={collection:c=>query(c,{where:[],orderBy:null,limit:5000}),doc:p=>{const [c,id]=split(p);return docRef(c,id)}};
+
+  const downloads={async save({filename,data}){
+    const blob=data instanceof Blob?data:new Blob([data],{type:/\.json$/i.test(filename)?"application/json":/\.csv$/i.test(filename)?"text/csv":/\.pdf$/i.test(filename)?"application/pdf":"application/octet-stream"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);return {status:"saved"}}};
+
+  /* ---------- sign-in screen ---------- */
+  function gate(){
+    const el=document.getElementById("signin"),form=document.getElementById("signinForm"),pw=document.getElementById("signinPw"),msg=document.getElementById("signinMsg"),btn=form.querySelector("button");
+    const logo=document.querySelector("header .logo");if(logo&&!el.querySelector(".logo"))el.querySelector(".sg-brand").prepend(logo.cloneNode(true));
+    return new Promise(resolve=>{
+      el.hidden=false;setTimeout(()=>pw.focus(),50);
+      form.onsubmit=async ev=>{ev.preventDefault();msg.textContent="";btn.disabled=true;btn.textContent="Signing in…";
+        try{await call("login",{password:pw.value});pw.value="";el.hidden=true;resolve()}
+        catch(e){msg.textContent=e.message||"Couldn't sign in. Try again.";pw.select()}
+        finally{btn.disabled=false;btn.textContent="Sign in"}};
+    });
+  }
+  async function signIn(){
+    let st;
+    for(;;){
+      try{st=await call("status");break}
+      catch(e){
+        const el=document.getElementById("signin");el.hidden=false;
+        document.getElementById("signinMsg").textContent=e.code==="not_configured"?e.message:"Can't reach the server. Retrying…";
+        document.getElementById("signinForm").hidden=e.code==="not_configured";
+        await new Promise(r=>setTimeout(r,5000));
+      }
+    }
+    document.getElementById("signinForm").hidden=false;document.getElementById("signinMsg").textContent="";
+    if(!st.signedIn)await gate();
+    signedOutHook=(function hook(){return async()=>{signedOutHook=null;await gate();signedOutHook=hook();refreshAll()}})();
+    schedule();
+  }
+  async function batch(writes){for(let i=0;i<writes.length;i+=150){await call("batch",{writes:writes.slice(i,i+150)})}pollRev=lastRev;refreshSoon()}
+  async function logout(){try{await call("logout")}catch(e){}location.reload()}
+  return {db,downloads,signIn,logout,batch};
+})();
+</script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s);
@@ -715,7 +853,7 @@ const logAdd=(c,what)=>[...(c.log||[]),{at:Date.now(),by:getMe()||"?",what}].sli
 let toastT;
 function toast(msg){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},3200)}
 function writeFail(e){toast(e&&(e.code==="permission-denied"||e.code==="not_granted")?"You can view this page but not change it. Ask the owner for Contributor access.":"That didn't save. Check your connection and try again.")}
-function needDb(){if(!S.db){toast("Saving works once this page is open on claude.ai.");return false}return true}
+function needDb(){if(!S.db){toast("Sign in to save changes.");return false}return true}
 function sync(state,txt){$("#dot").className="dot "+state;$("#syncTxt").textContent=txt}
 const idle=()=>S.canWrite?sync("ok","Live"):sync("","View only");
 let pending=0;
@@ -929,7 +1067,7 @@ function goHome(){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick=""}
 const fCount=()=>(S.fWhere!=="all")+(!!S.fType)+(S.fState!=="open");
 function viewCases(){
   return `${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
-  ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Open this page on claude.ai while signed in to save and share cases.</span></div>`:""}
+  ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Sign in with the office password to save and share cases.</span></div>`:""}
   <div class="filters${S.fOpen||fCount()?" open":""}">
     <input id="q" type="search" placeholder="Search name, patient #, tooth, shade…" value="${esc(S.q)}" aria-label="Search cases">
     <button type="button" class="ftoggle" data-ftoggle aria-expanded="${!!(S.fOpen||fCount())}">Filters${fCount()?`<span class="fcount">${fCount()}</span>`:""}</button>
@@ -1084,7 +1222,7 @@ function labCard(l,main){
         <div class="f full"><label for="lnotes-${esc(l.id)}">Services / notes</label><textarea id="lnotes-${esc(l.id)}" data-lf="notes" rows="2" placeholder="What we send here, pickup days, preferences…">${esc(l.notes)}</textarea></div>
       </div>
       <div class="actions">${l.website?`<a class="btn sm" href="${esc(/^https?:/i.test(l.website)?l.website:"https://"+l.website)}" target="_blank" rel="noopener">Open website ↗</a>`:""}${main?"":`<button class="btn sm danger${S.arm==="lab"+l.id?" armed":""}" data-dellab="${esc(l.id)}">${S.arm==="lab"+l.id?"Tap again to delete":"Delete lab"}</button>`}</div>
-      <p class="hint">Changes save when you leave a field. The password is hidden on screen but stored as plain text: anyone who can open this page, and any full backup file, can see it.</p>
+      <p class="hint">Changes save when you leave a field. The password is hidden on screen but stored as plain text: anyone signed in with the office password, and any full backup file, can see it.</p>
     </div></details>${main?"":`<button type="button" class="ebtn rm odel ldel${S.arm==="lab"+l.id?" armed":""}" data-dellab="${esc(l.id)}" aria-label="Delete ${esc(l.name)}" title="Delete lab">${S.arm==="lab"+l.id?"Delete?":"×"}</button>`}</div>`
 }
 
@@ -1123,7 +1261,9 @@ function viewSetup(){
     <div class="f"><span class="lbl">Export</span><div class="actions">${S.dl?`<button class="btn" data-expjson>Full backup (.json)</button><button class="btn" data-expcsv>Cases spreadsheet (.csv)</button><button class="btn" data-explabs>Labs (.csv)</button>`:'<span class="hint">Downloads aren\'t available in this view.</span>'}</div></div>
     <div class="f"><span class="lbl">Import</span><p class="hint">Choose a full backup (.json) to restore it, or a spreadsheet (.csv) of cases with columns like Patient #, Patient, Date of birth, Case type, Made by, Teeth, Shade, Due, Status, Notes. You'll see what changes before anything is saved.</p>
       <div class="actions"><label class="btn filebtn">Choose file…<input type="file" id="impfile" accept=".json,.csv,application/json,text/csv"></label></div>${imp}</div>
-  </div>`;
+  </div>
+  <div class="sechead"><h2>This device</h2></div>
+  <div class="card"><p class="hint">Signed in with the office password. Signing out only affects this phone or computer.</p><div class="actions"><button class="btn" data-signout>Sign out</button></div></div>`;
 }
 /* Case options boxes: dragged order is kept in settings/lists.optOrder; case details can be deleted from their row */
 function arrangeOpts(html){
@@ -1421,6 +1561,7 @@ document.addEventListener("click",async ev=>{
     window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-off-8,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});return}
   if(ds.impcancel!==undefined){S.imp=null;render(true);return}
   if(ds.impgo!==undefined){runImport();return}
+  if(ds.signout!==undefined){TDC.logout();return}
   if(ds.expjson!==undefined){const strip=o=>JSON.parse(JSON.stringify(o));save(`TDC lab cases backup ${todayISO()}.json`,JSON.stringify({app:"tdc-lab-cases",version:1,exportedAt:new Date().toISOString(),team:S.team,types:{types:TYPES(),outSteps:OUTSTEPS(),fieldDefs:FDEFS()},lists:listsNow(),colors:S.colors,labs:strip(S.labs),cases:strip(S.cases)},null,2));return}
   if(ds.expcsv!==undefined){const rows=S.cases.slice().sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));const cols=CASE_COLS();save(`TDC lab cases ${todayISO()}.csv`,[cols.map(c=>csvCell(c[0])).join(","),...rows.map(r=>cols.map(([,f])=>csvCell(f(r))).join(","))].join("\r\n"));return}
   if(ds.explabs!==undefined){save(`TDC labs ${todayISO()}.csv`,[LAB_COLS.map(c=>csvCell(c[0])).join(","),...S.labs.map(l=>LAB_COLS.map(([,k])=>csvCell(l[k])).join(","))].join("\r\n"));return}
@@ -1654,11 +1795,9 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",applyThem
 /* ---------- boot ---------- */
 render(true);
 (async()=>{
-  const cl=window.claude;if(!cl||!cl.use){S.live=true;sync("err","Offline");render(true);return}
-  const [db,user,dl]=await Promise.all([cl.use("db"),cl.use("user"),cl.use("downloads")]);
+  await TDC.signIn();
+  const db=TDC.db,dl=TDC.downloads;
   S.db=db;S.dl=dl;S.live=true;
-  if(user){try{const w=await user.can("data.write");if(w===false)S.canWrite=false}catch(e){}}
-  if(!db){sync("err","Offline");render(true);return}
   const byName=(a,b)=>(a.name||"").localeCompare(b.name||"");
   /* every open or on-hold case, however old, plus the 500 newest of any status (for the Delivered / Cancelled views) */
   const fix=d=>{const c={id:d.id,...d.data()};if(!c.lab)c.lab="inhouse";if(!Array.isArray(c.steps))c.steps=[];return c};
