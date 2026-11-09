@@ -537,6 +537,24 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 @media (min-width:641px){.brand b{white-space:nowrap}}
 </style>
 <input type="file" id="filePick" tabindex="-1" aria-hidden="true" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
+<style>
+/* calm palette: red, amber and green only flag what needs attention; olive is for actions; everything else is neutral */
+:root:root:root{--out:var(--slate);--out-soft:var(--sunk);--prog:var(--slate);--prog-soft:var(--sunk);--new:var(--muted)}
+[data-k=n]{--kc:var(--line)}
+.kdot{display:none!important}
+.crow[data-k]{background:var(--surface)}
+.crow[data-k]:hover{background:var(--sunk)}
+.pill.type[data-k],.pill.labp,.pill.in,.pill.remake{background:var(--sunk);color:var(--fg)}
+.tchip.kc[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.grp.cathead{background:var(--sunk)}
+header .tile{--c:var(--slate);border-top-color:var(--line)}
+header .tile b{color:var(--slate)}
+header .tile[data-q=overdue]:not([data-zero]){--c:var(--late);border-top-color:var(--late)}
+header .tile[data-q=hold]:not([data-zero]){--c:var(--hold);border-top-color:var(--hold)}
+header .tile[data-q=ready]:not([data-zero]){--c:var(--ready);border-top-color:var(--ready)}
+header .tile:not([data-zero])[data-q=overdue] b,header .tile:not([data-zero])[data-q=hold] b,header .tile:not([data-zero])[data-q=ready] b{color:var(--c)}
+header .tile[aria-pressed="true"] b{color:var(--surface)!important}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -785,6 +803,7 @@ function applyCustomK(){
   const css=hs.map(h=>`[data-k="c${h}"]{--kc:#${h};--kt:${lum(h)>.4?"#1b1f1c":"#ffffff"}}`).join("");if(el.textContent!==css)el.textContent=css;
 }
 function kIndex(key){
+  return "n";
   const v=S.colors[key];if(Number.isInteger(v)&&v>=0&&v<8)return v;
   if(isHex(v))return "c"+v.slice(1).toLowerCase();
   if(key.startsWith("t:")){const t=typeOf(key.slice(2));return kIndex("g:"+((t&&t.group)||"Other"))}
@@ -798,13 +817,12 @@ function statusK(c){
   if(c.state==="hold")return"hold";
   if(isReady(c))return"ready";
   if(is911(c)||isLate(c))return"late";
-  /* otherwise the lab's color from Setup → Labs */
-  return kIndex("lab:"+(c.lab||"inhouse"));
+  return "n";
 }
 const isReady=c=>isOpen(c)&&(stage(c)==="ready"||allDone(c));
 const typeK=c=>typeOf(c.type)?kIndex("t:"+c.type):kIndex(groupKey(c));
 const groupKey=c=>"g:"+((typeOf(c.type)||{}).group||"Other");
-const caseK=c=>S.colorBy==="cat"?(typeOf(c.type)?kIndex("t:"+c.type):kIndex(groupKey(c))):S.colorBy==="lab"?kIndex("lab:"+(c.lab||"inhouse")):statusK(c);
+const caseK=c=>statusK(c);
 function getMe(){try{return localStorage.getItem("tdc-initials")||""}catch(e){return""}}
 function setMe(v){try{localStorage.setItem("tdc-initials",v)}catch(e){}}
 
@@ -977,7 +995,7 @@ function renderHead(){
   const n911=open.filter(is911).length;
   /* 🚨 = 911 cases, 📅 = cases that need a new delivery date; each tile shows the ones it counts */
   const tiles=[["active","Active",isActive],["out","Sent out",c=>!isIn(c)],["overdue","Overdue",c=>isLate(c)||is911(c)],["ready","Ready to deliver",isReady],["hold","On hold",c=>c.state==="hold"]].map(([k,l,f])=>{const cs=open.filter(f);return[k,l,cs.length,k==="overdue"?cs.filter(is911).length:0,cs.filter(seatPassed).length]});
-  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}" aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b><span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
+  $("#band").innerHTML=tiles.map(([k,l,n,e,d])=>`<button class="tile" data-q="${k}"${n?"":" data-zero"} aria-pressed="${onCases&&(k==="all"?isHome():S.fQuick===k)}" aria-label="${esc(l)}: ${n}${e?`, ${e} of them 911`:""}${d?`, ${d} need a new delivery date`:""}"><b>${n}</b><span>${l}</span>${e||d?`<span class="tbadges">${d?`<i class="bdate" title="${pl(d,"case")} needing a new delivery date">📅 ${d}</i>`:""}${e?`<i class="b911" title="${pl(e,"911 case")}: not finished, patient in within 2 days">🚨 ${e}</i>`:""}</span>`:""}</button>`).join("");
   const me=getMe(),w=$("#who");
   if(document.activeElement!==w){
     const opts=[...S.team];if(me&&!opts.includes(me))opts.push(me);
@@ -1069,6 +1087,7 @@ function renderList(){
   el.innerHTML=`<div class="list">${groups.filter(g=>g[1].length).map(([n,cs,cls])=>`<div class="grp${cls?" "+cls:""}">${n}<span>${cs.length}</span></div>${cs.map(caseRow).join("")}`).join("")}</div>${more}`;
 }
 function legend(){
+  return "";
   const used=new Set(S.cases.filter(isOpen).map(c=>c.type));
   const it=S.colorBy==="cat"?TYPES().filter(t=>used.has(t.id)).map(t=>[kIndex("t:"+t.id),t.name])
     :S.colorBy==="lab"?[[kIndex("lab:inhouse"),IH().name],...extLabs().filter(l=>!l.off).map(l=>[kIndex("lab:"+l.id),l.name])]
@@ -1234,7 +1253,7 @@ function labCard(l,main){
     <div class="tbody">
       ${open?`<div class="actions"><button class="btn sm" data-showlab="${esc(l.id)}">Show ${pl(open,"open case")}</button></div>`:""}
       <div class="fields">
-        <div class="f full"><span class="lbl">Color (when cases are colored by lab)</span>${kPick("lab:"+l.id,l.name)}</div>
+
         ${main?`<p class="hint full">Cases made here use each case type's steps and show "Ready by". A usual turnaround set here fills in the Ready by date on new in-house cases, ahead of the case type's default.</p>`:`<div class="f full"><span class="lbl">Where the work is done</span><div class="where"><button type="button" class="tchip" data-labin="0" aria-pressed="${!l.inhouse}">Outside lab</button><button type="button" class="tchip" data-labin="1" aria-pressed="${!!l.inhouse}">In-house</button></div><span class="hint">In-house labs use the case type's steps, count as Active, and show "Ready by" instead of "Due back".</span></div>`}
         <div class="f full"><label for="ln-${esc(l.id)}">Lab name</label><input id="ln-${esc(l.id)}" data-lf="name" value="${esc(l.name)}" autocomplete="off"></div>
         ${L.map(([k,lab])=>`<div class="f${k==="address"?" full":""}"><label for="l${k}-${esc(l.id)}">${lab}</label>${k==="address"?`<textarea id="l${k}-${esc(l.id)}" data-lf="${k}" rows="2">${esc(l[k])}</textarea>`:k==="password"?`<div class="pwrow"><input id="l${k}-${esc(l.id)}" data-lf="${k}" type="${S.pwShow===l.id?"text":"password"}" class="mono" value="${esc(l[k])}" autocomplete="off" data-1p-ignore data-lpignore="true"><button type="button" class="btn sm" data-pwshow="${esc(l.id)}" aria-pressed="${S.pwShow===l.id}">${S.pwShow===l.id?"Hide":"Show"}</button>${l[k]?`<button type="button" class="btn sm" data-copy="${esc(l[k])}">Copy</button>`:""}</div>`:`<div class="pwrow"><input id="l${k}-${esc(l.id)}" data-lf="${k}" value="${esc(l[k])}" autocomplete="off"${k==="phone"?' type="tel"':k==="email"?' type="email"':k==="turnaround"?' inputmode="numeric" class="mono"':k==="account"||k==="portal"?' class="mono"':""}>${(k==="phone"||k==="email"||k==="account"||k==="portal")&&l[k]?`<button type="button" class="btn sm" data-copy="${esc(l[k])}">Copy</button>`:""}</div>`}</div>`).join("")}
@@ -1303,7 +1322,7 @@ function viewSetup(){
       <div class="fields"><div class="f"><label for="tn-${esc(t.id)}">Name</label><input id="tn-${esc(t.id)}" data-tf="name" value="${esc(t.name)}" autocomplete="off"></div>
       <div class="f"><label for="tg-${esc(t.id)}">Group</label><select id="tg-${esc(t.id)}" data-tf="group">${GROUPS.map(g=>`<option${g===(t.group||"Other")?" selected":""}>${esc(g)}</option>`).join("")}</select></div>
       <div class="f"><label for="td-${esc(t.id)}">Default turnaround (days)</label><input id="td-${esc(t.id)}" type="number" min="0" max="365" inputmode="numeric" data-tf="dueDays" value="${dueDaysOf(t)}"><span class="hint">Sets the ready-by date on new cases. An outside lab's usual turnaround wins when the case is sent out.</span></div></div>
-      <div class="f"><span class="lbl">Color (when cases are colored by case type; starts as the ${esc(t.group||"Other")} color)</span>${kPick("t:"+t.id,t.name)}</div>
+
       <div class="f"><span class="lbl">Details asked for, in order (tooth numbers are always asked)</span>${fieldEditor(t)}</div>
       ${t.fields.includes("material")?`<div class="f"><span class="lbl">Material</span>${matEditor(t)}</div>`:""}
       <div class="f"><span class="lbl">Steps, in order</span>${stepEditor(t.steps,t.id)}</div>
@@ -1380,6 +1399,7 @@ function matEditor(t){
     <p class="hint">The default is filled in on new cases and can still be changed. Add or edit materials under Shades & materials.</p></div>`;
 }
 function kPick(key,name){
+  return "";
   const cur=kIndex(key);
   return `<span class="ksws" role="radiogroup" aria-label="Color for ${esc(name)}">${KNAMES.map((n,i)=>`<button type="button" class="ksw" data-k="${i}" data-kset="${esc(key)}" data-ki="${i}" role="radio" aria-checked="${i===cur}" aria-label="${n}" title="${n}"></button>`).join("")}<label class="ksw kcust${typeof cur==="string"?" on":""}"${typeof cur==="string"?` data-k="${cur}"`:""} title="Custom color" aria-checked="${typeof cur==="string"}"><input type="color" data-kcustom="${esc(key)}" value="${typeof cur==="string"?"#"+cur.slice(1):"#3a7bd5"}" aria-label="Custom color for ${esc(name)}"></label></span>`;
 }
