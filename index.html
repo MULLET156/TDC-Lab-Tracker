@@ -520,6 +520,12 @@ header .hdr-date{display:inline}
   <form id="signinForm" autocomplete="on"><label for="signinPw">Office password</label><input type="password" id="signinPw" name="password" autocomplete="current-password" required><button class="btn pri" type="submit">Sign in</button></form>
   <p id="signinMsg" role="alert"></p><p class="sg-note">This device stays signed in for 90 days. Sign out under Setup.</p></div></div>
 
+<style>
+.logoprev{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;align-items:center;min-height:80px}
+.logoprev.lt{background:#fff}.logoprev.dk{background:#18242a}
+.logoprev img{display:block;max-height:56px;max-width:100%;width:auto}
+.custom-logo header .logo-icon img{max-width:130px;object-fit:contain}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -715,7 +721,7 @@ const DEFAULT_OUT=["Rx & scans sent to lab","Shipped / uploaded","Lab confirmed 
 const STAGE={new:"Not started",inprog:"In progress",ready:"Ready to deliver",hold:"On hold",delivered:"Delivered",cancelled:"Cancelled"};
 
 /* ---------- state ---------- */
-const S={db:null,dl:null,canWrite:true,team:[],labs:[],cases:[],typesDoc:null,editSteps:false,newField:null,
+const S={logo:{l:null,d:null},logoBusy:null,db:null,dl:null,canWrite:true,team:[],labs:[],cases:[],typesDoc:null,editSteps:false,newField:null,
   groupBy:(()=>{try{return localStorage.getItem("tdc-lab-groupby")||"due"}catch(e){return"due"}})(),
   /* colors follow Group by: due date → status, case type → case-type colors, lab → lab colors */
   get colorBy(){return this.groupBy==="lab"?"lab":"cat"},colors:{},lists:null,
@@ -1227,10 +1233,38 @@ function labCard(l,main){
 }
 
 /* ---------- setup tab ---------- */
+/* ---------- office logo: uploaded in Setup, shown in the header for everyone ---------- */
+const LOGO_DEF=new Map([...document.querySelectorAll("header .logo img")].map(i=>[i,i.src]));
+const LOGO_FIRST=k=>{for(const [i,s] of LOGO_DEF)if(i.classList.contains(k))return s;return ""};
+const LOGO_OK=v=>typeof v==="string"&&/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(v)&&v.length<240000;
+function applyLogo(){document.documentElement.classList.toggle("custom-logo",!!S.logo.l);
+  for(const [i,def] of LOGO_DEF){const want=(i.classList.contains("logo-d")?S.logo.d||S.logo.l:S.logo.l)||def;if(i.src!==want)i.src=want}}
+function shrinkLogo(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{try{let w=img.naturalWidth||600,h=img.naturalHeight||200;let k=Math.min(1,720/w,240/h);
+    for(let tries=0;tries<6;tries++){const c=document.createElement("canvas");c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      for(const [t,q] of [["image/png"],["image/webp",.92],["image/webp",.82]]){const d=c.toDataURL(t,q);if(LOGO_OK(d)){URL.revokeObjectURL(url);res(d);return}}k*=.75}
+    URL.revokeObjectURL(url);rej(new Error("too big"))}catch(e){URL.revokeObjectURL(url);rej(e)}};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("unreadable"))};img.src=url})}
+async function uploadLogo(k,file){
+  if(!needDb())return;
+  if(!/^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(file.type)){toast("Use a PNG, JPG, WebP, GIF or SVG image.");return}
+  if(file.size>10*1024*1024){toast("That image is over 10 MB. Try a smaller file.");return}
+  S.logoBusy=k;render(true);
+  try{const src=await shrinkLogo(file);await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).set({src,name:file.name.slice(0,80),at:new Date().toISOString()});
+    S.logo[k]=src;applyLogo();toast(k==="l"?"Logo updated for everyone.":"Dark mode logo updated for everyone.")}
+  catch(e){if(e&&e.code)writeFail(e);else toast("Couldn't read that image. Try a PNG or JPG.")}
+  finally{S.logoBusy=null;render(true)}}
+function logoHTML(){const box=(k,title,hint)=>{const cur=S.logo[k],shown=cur||(k==="d"?S.logo.l||LOGO_FIRST("logo-d"):LOGO_FIRST("logo-l")),busy=S.logoBusy===k,off=S.canWrite&&!busy?"":"disabled";
+    return `<div class="f"><span class="lbl">${title}</span><p class="hint">${hint}</p><div class="logoprev ${k==="d"?"dk":"lt"}"><img alt="${k==="d"?"Dark mode logo preview":"Logo preview"}" src="${shown}"></div>
+      <div class="actions"><label class="btn filebtn">${busy?"Uploading…":cur?"Replace…":"Upload…"}<input type="file" data-logofile="${k}" aria-label="${title}" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" ${off}></label>${cur?`<button class="btn" type="button" data-logoclear="${k}" ${off}>${k==="d"?"Remove":"Use the original"}</button>`:""}</div></div>`};
+  return `<div class="sechead"><h2>Logo</h2></div>
+  <div class="card">${box("l","Logo","Shown at the top of every page for everyone. PNG, JPG, WebP, GIF or SVG; a wide logo on a transparent background looks best. It's shown about 56 px tall.")}
+    ${box("d","Dark mode logo (optional)",S.logo.d?"Used instead of the logo above when the page is in Dark mode.":"For a logo that's hard to see on a dark background. Without one, Dark mode uses "+(S.logo.l?"your logo above.":"the original light-on-dark version."))}</div>`}
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
   return `<div class="pagehead"><h2>Setup</h2></div>
+  ${logoHTML()}
   <div class="sechead"><h2>Team</h2><span class="hint">Initials show on every checked step</span></div>
   <div class="card"><div class="chips">${S.team.map(i=>`<span class="chip">${esc(i)}<button data-rmteam="${esc(i)}" aria-label="Remove ${esc(i)}">×</button></span>`).join("")||'<span class="hint">No one added yet.</span>'}</div>
     <form class="addline" id="addteam"><div class="f"><label for="newinit">Add initials</label><input id="newinit" maxlength="4" style="width:110px;text-transform:uppercase" required autocomplete="off"></div><button class="btn pri" type="submit">Add</button></form>
@@ -1562,6 +1596,7 @@ document.addEventListener("click",async ev=>{
   if(ds.impcancel!==undefined){S.imp=null;render(true);return}
   if(ds.impgo!==undefined){runImport();return}
   if(ds.signout!==undefined){TDC.logout();return}
+  if(ds.logoclear){const k=ds.logoclear==="d"?"d":"l";if(!needDb())return;try{await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).delete();S.logo[k]=null;applyLogo();render(true);toast(k==="l"?"Back to the original logo.":"Dark mode logo removed.")}catch(e){writeFail(e)}return}
   if(ds.expjson!==undefined){const strip=o=>JSON.parse(JSON.stringify(o));save(`TDC lab cases backup ${todayISO()}.json`,JSON.stringify({app:"tdc-lab-cases",version:1,exportedAt:new Date().toISOString(),team:S.team,types:{types:TYPES(),outSteps:OUTSTEPS(),fieldDefs:FDEFS()},lists:listsNow(),colors:S.colors,labs:strip(S.labs),cases:strip(S.cases)},null,2));return}
   if(ds.expcsv!==undefined){const rows=S.cases.slice().sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));const cols=CASE_COLS();save(`TDC lab cases ${todayISO()}.csv`,[cols.map(c=>csvCell(c[0])).join(","),...rows.map(r=>cols.map(([,f])=>csvCell(f(r))).join(","))].join("\r\n"));return}
   if(ds.explabs!==undefined){save(`TDC labs ${todayISO()}.csv`,[LAB_COLS.map(c=>csvCell(c[0])).join(","),...S.labs.map(l=>LAB_COLS.map(([,k])=>csvCell(l[k])).join(","))].join("\r\n"));return}
@@ -1579,6 +1614,7 @@ document.addEventListener("change",async ev=>{
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
   if(el.id==="fState"){S.fState=el.value;S.fQuick="";render(true);return}
+  if(el.dataset.logofile){const f=el.files&&el.files[0],k=el.dataset.logofile==="d"?"d":"l";el.value="";if(f)uploadLogo(k,f);return}
   if(el.id==="impfile"){const f=el.files&&el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f);el.value="";return}
   /* step checkbox */
   if(ds.step!==undefined){
@@ -1813,6 +1849,7 @@ render(true);
   db.collection("labs").onSnapshot(s=>{S.labs=s.docs.map(d=>({id:d.id,...d.data()})).sort(byName);S.loaded.l=true;snapRender()},()=>{S.loaded.l=true;render()});
   db.doc("settings/team").onSnapshot(s=>{S.team=(s.exists&&s.data().initials)||[];S.loaded.s=true;snapRender()},()=>{});
   db.doc("settings/lists").onSnapshot(s=>{S.lists=s.exists?s.data():null;snapRender()},()=>{});
+  for(const [k,id] of [["l","logo-light"],["d","logo-dark"]])db.doc("settings/"+id).onSnapshot(s=>{const v=s.exists&&s.data()&&s.data().src,n=LOGO_OK(v)?v:null;if(n===S.logo[k])return;S.logo[k]=n;applyLogo();if(S.tab==="setup")snapRender()},()=>{});
   db.doc("settings/colors").onSnapshot(s=>{S.colors=(s.exists&&s.data().map)||{};applyCustomK();snapRender()},()=>{});
   db.doc("settings/types").onSnapshot(s=>{S.typesDoc=s.exists?s.data():null;S.loaded.t=true;snapRender()},()=>{});
 })();
