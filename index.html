@@ -601,6 +601,9 @@ nav.tabs button.alltab[aria-current="page"]{background:var(--navy);border-color:
 </style>
 <style>
 /* compact header like the Supply Room: logo beside the title; title bar and search live in the header; phones get a bottom tab bar */
+/* the logo keeps its proportions: never squeezed by the title beside it */
+header .brand .logo{flex:none}
+header .brand .logo img{max-width:none;object-fit:contain}
 #hdrSlot{display:grid;gap:8px}
 #hdrSlot:empty{display:none}
 #hdrSlot .pagehead{padding:4px 14px}
@@ -611,7 +614,7 @@ header .tile .sh{display:none}
 header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:inherit}
 @media (min-width:641px){
   header .wrap{padding-block:8px;gap:8px}
-  .brand{display:flex!important;align-items:center;gap:24px}
+  .brand{display:flex!important;align-items:center;gap:40px}
   .brand .logo{margin:0}
   .brand .logo img{height:46px}
   .brand b{font-size:30px}
@@ -652,6 +655,7 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
   header .tile[aria-pressed="true"]::after,header .tile .tbadges{display:none}
   header .tmore{display:flex!important;--t:var(--slate)}
 }
+@media (max-width:370px){header .logo img{height:22px!important}.brand b{font-size:15px!important}}
 .dlgwrap.sheet{place-items:end center;padding:0}
 .dlgwrap.sheet .dlg{width:100%;max-width:480px;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 .dlg .mgo{justify-content:flex-start;min-height:48px;font-size:16px}
