@@ -1269,7 +1269,6 @@ function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
   return `<div class="pagehead"><h2>Setup</h2></div>
-  ${logoHTML()}
   <div class="sechead"><h2>Team</h2><span class="hint">Initials show on every checked step</span></div>
   <div class="card"><div class="chips">${S.team.map(i=>`<span class="chip">${esc(i)}<button data-rmteam="${esc(i)}" aria-label="Remove ${esc(i)}">×</button></span>`).join("")||'<span class="hint">No one added yet.</span>'}</div>
     <form class="addline" id="addteam"><div class="f"><label for="newinit">Add initials</label><input id="newinit" maxlength="4" style="width:110px;text-transform:uppercase" required autocomplete="off"></div><button class="btn pri" type="submit">Add</button></form>
@@ -1295,6 +1294,7 @@ function viewSetup(){
 
   ${viewMaterials()}
 
+  ${logoHTML()}
   <div class="sechead"><h2>Backup, import & export</h2></div>
   <div class="card">
     <div class="f"><span class="lbl">Export</span><div class="actions">${S.dl?`<button class="btn" data-expjson>Full backup (.json)</button><button class="btn" data-expcsv>Cases spreadsheet (.csv)</button><button class="btn" data-explabs>Labs (.csv)</button>`:'<span class="hint">Downloads aren\'t available in this view.</span>'}</div></div>
