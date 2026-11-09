@@ -518,7 +518,7 @@ header .hdr-date{display:inline}
 </style>
 <div id="signin" hidden><div class="sg-card"><div class="sg-brand"><h1>Lab Tracker</h1><p>Toledo Dental Care</p></div>
   <form id="signinForm" autocomplete="on"><label for="signinPw">Office password</label><input type="password" id="signinPw" name="password" autocomplete="current-password" required><button class="btn pri" type="submit">Sign in</button></form>
-  <p id="signinMsg" role="alert"></p><p class="sg-note">This device stays signed in for 90 days. Sign out under Setup.</p></div></div>
+  <p id="signinMsg" role="alert"></p><p class="sg-note">This device stays signed in for 90 days.</p></div></div>
 
 <style>
 .logoprev{border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;align-items:center;min-height:80px}
@@ -1367,8 +1367,6 @@ function viewSetup(){
     <div class="f"><span class="lbl">Import</span><p class="hint">Choose a full backup (.json) to restore it, or a spreadsheet (.csv) of cases with columns like Patient #, Patient, Date of birth, Case type, Made by, Teeth, Shade, Due, Status, Notes. You'll see what changes before anything is saved.</p>
       <div class="actions"><button class="btn" type="button" data-pick="import">Choose file…</button></div>${imp}</div>
   </div>
-  <div class="sechead"><h2>This device</h2></div>
-  <div class="card"><p class="hint">Signed in with the office password. Signing out only affects this phone or computer.</p><div class="actions"><button class="btn" data-signout>Sign out</button></div></div>
   <div class="sechead"><h2>Delete cases</h2></div>
   <div class="card"><p class="hint">Deletes every case, including delivered and cancelled ones, and keeps your labs, team, case types, lists and logo.</p><div class="actions"><button class="btn danger" type="button" data-delcases>Delete all cases</button></div></div>`;
 }
@@ -1670,7 +1668,6 @@ document.addEventListener("click",async ev=>{
     window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-off-8,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});return}
   if(ds.impcancel!==undefined){S.imp=null;render(true);return}
   if(ds.impgo!==undefined){runImport();return}
-  if(ds.signout!==undefined){TDC.logout();return}
   if(ds.logoclear){const k=ds.logoclear==="d"?"d":"l";if(!needDb())return;try{await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).delete();S.logo[k]=null;applyLogo();render(true);toast(k==="l"?"Logo removed.":"Dark mode logo removed.")}catch(e){writeFail(e)}return}
   if(ds.delcases!==undefined){askDelCases();return}
   if(ds.delcasesNo!==undefined){closeDelCases();return}
