@@ -149,6 +149,17 @@ if ($op === 'status') {
     out(200, ['ok' => true, 'signedIn' => signed_in($pdo)]);
 }
 
+if ($op === 'logo') {
+    // The uploaded logo is the one thing shown before sign-in.
+    $logo = [];
+    foreach (['l' => 'logo-light', 'd' => 'logo-dark'] as $k => $id) {
+        $d = load($pdo, 'settings', $id);
+        $s = $d['src'] ?? null;
+        if (is_string($s) && strlen($s) < 240000 && preg_match('#^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$#', $s)) $logo[$k] = $s;
+    }
+    out(200, ['ok' => true, 'logo' => $logo]);
+}
+
 if ($op === 'login') {
     $ip = client_ip(); $now = time();
     $pdo->prepare('DELETE FROM tdc_fails WHERE ts < ?')->execute([$now - FAIL_WINDOW]);

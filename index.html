@@ -808,7 +808,8 @@ window.TDC=(function(){
   /* ---------- sign-in screen ---------- */
   function gate(){
     const el=document.getElementById("signin"),form=document.getElementById("signinForm"),pw=document.getElementById("signinPw"),msg=document.getElementById("signinMsg"),btn=form.querySelector("button");
-    const logo=document.querySelector("header .logo");if(logo&&!el.querySelector(".logo"))el.querySelector(".sg-brand").prepend(logo.cloneNode(true));
+    const logo=document.querySelector("header .logo");if(logo&&!el.querySelector(".logo")){const c=logo.cloneNode(true);c.style.visibility="hidden";el.querySelector(".sg-brand").prepend(c);
+      call("logo").then(j=>{const g=(j&&j.logo)||{};for(const i of c.querySelectorAll("img")){const v=i.classList.contains("logo-d")?g.d||g.l:g.l;if(v)i.src=v}}).catch(()=>{}).finally(()=>{c.style.visibility=""})}
     return new Promise(resolve=>{
       el.hidden=false;setTimeout(()=>pw.focus(),50);
       form.onsubmit=async ev=>{ev.preventDefault();msg.textContent="";btn.disabled=true;btn.textContent="Signing in…";
