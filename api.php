@@ -18,7 +18,7 @@ header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 
-const COLLECTIONS = ['cases', 'labs', 'settings'];
+const COLLECTIONS = ['cases', 'labs', 'settings', 'photos'];
 const COOKIE      = 'tdc_auth';
 const TOKEN_DAYS  = 90;
 const MAX_FAILS   = 10;      // failed sign-ins per IP …
@@ -265,7 +265,12 @@ function read_query(PDO $pdo, array $r): array {
     $col = col_ok($r['col'] ?? null);
     $sql = 'SELECT id, data FROM tdc_docs WHERE col = ?'; $args = [$col];
     foreach (($r['where'] ?? []) as $w) {
-        // Only a case's status can be filtered on; it has its own column.
+        // A photo's case: photo ids start with the case id and "~".
+        if (is_array($w) && count($w) === 3 && $w[0] === 'caseId' && $w[1] === '==' && is_string($w[2]) && preg_match('/^[A-Za-z0-9\-]{1,100}$/', $w[2])) {
+            $sql .= ' AND id LIKE ?'; $args[] = $w[2] . '~%';
+            continue;
+        }
+        // Otherwise only a case's status can be filtered on; it has its own column.
         if (!is_array($w) || count($w) !== 3 || $w[0] !== 'state') fail(400, 'invalid_argument', 'Unsupported filter.');
         $vals = $w[1] === 'in' ? $w[2] : ($w[1] === '==' ? [$w[2]] : null);
         if (!is_array($vals) || count($vals) === 0 || count($vals) > 10) fail(400, 'invalid_argument', 'Unsupported filter.');

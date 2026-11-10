@@ -699,6 +699,20 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
   .panel .actions.pacts .btn.pri,.pacts .btn.pri{flex:2 1 auto}
 }
 </style>
+<style>
+.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.phgrid button{all:unset;cursor:pointer;aspect-ratio:1;border-radius:9px;overflow:hidden;background:var(--sunk);border:1px solid var(--line)}
+.phgrid button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.phgrid img{width:100%;height:100%;object-fit:cover;display:block}
+.phview{position:fixed;inset:0;z-index:46;background:rgba(5,10,9,.92);display:grid;grid-template-rows:minmax(0,1fr) auto;padding:12px max(12px,env(safe-area-inset-left,0px)) calc(12px + env(safe-area-inset-bottom,0px))}
+.phview img{max-width:100%;max-height:100%;margin:auto;object-fit:contain;border-radius:6px}
+.phview .actions{justify-content:center;padding-top:10px}
+.dlg .actions .btn .ic{width:17px;height:17px}
+.stepshead .actions{gap:6px;flex-wrap:nowrap}
+.stepshead:has(>.actions){flex-wrap:wrap}
+@media (max-width:640px){.stepshead>.actions{width:100%}.panel .stepshead>.actions .btn{flex:1 1 0;white-space:nowrap}}
+.phview .meta{color:#ddd;font-size:13px;text-align:center;padding-top:6px}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -896,7 +910,7 @@ const DEFAULT_OUT=["Rx & scans sent to lab","Shipped / uploaded","Lab confirmed 
 const STAGE={new:"Not started",inprog:"In progress",ready:"Ready to deliver",hold:"On hold",delivered:"Delivered",cancelled:"Cancelled"};
 
 /* ---------- state ---------- */
-const S={logo:{l:null,d:null},logoBusy:null,db:null,dl:null,canWrite:true,team:[],labs:[],cases:[],typesDoc:null,editSteps:false,newField:null,
+const S={photos:{},phBusy:null,logo:{l:null,d:null},logoBusy:null,db:null,dl:null,canWrite:true,team:[],labs:[],cases:[],typesDoc:null,editSteps:false,newField:null,
   groupBy:(()=>{try{return localStorage.getItem("tdc-lab-groupby")||"due"}catch(e){return"due"}})(),
   /* colors follow Group by: due date → status, case type → case-type colors, lab → lab colors */
   get colorBy(){return this.groupBy==="lab"?"lab":"cat"},colors:{},lists:null,
@@ -1354,7 +1368,72 @@ function slipPDF(c){
   const xr=out.length;out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(n=>String(n).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF`;
   return out;
 }
+/* ---------- case photos: kept one per document in "photos", linked by caseId ---------- */
+const PH_OK=v=>typeof v==="string"&&/^data:image\/(jpeg|webp|png);base64,[A-Za-z0-9+\/=]+$/.test(v)&&v.length<(typeof TDC!=="undefined"?760000:250000);
+function loadPhotos(cid,force){if(!S.db||(!force&&S.photos[cid]!==undefined))return;S.photos[cid]=null;
+  S.db.collection("photos").where("caseId","==",cid).get().then(s=>{S.photos[cid]=s.docs.map(d=>({id:d.id,...d.data()})).filter(p=>PH_OK(p.src)).sort((a,b)=>(a.at||0)-(b.at||0));if(S.panel===cid)renderPanel()}).catch(()=>{S.photos[cid]=[];if(S.panel===cid)renderPanel()})}
+function shrinkPhoto(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{try{let k=Math.min(1,1600/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+    for(let t=0;t<6;t++){const c=document.createElement("canvas");c.width=Math.max(1,Math.round(img.naturalWidth*k));c.height=Math.max(1,Math.round(img.naturalHeight*k));const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+      for(const q of [.82,.7,.6]){const d=c.toDataURL("image/jpeg",q);if(PH_OK(d)){URL.revokeObjectURL(url);res(d);return}}k*=.75}
+    URL.revokeObjectURL(url);rej(new Error("too big"))}catch(e){URL.revokeObjectURL(url);rej(e)}};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("unreadable"))};img.src=url})}
+async function addPhotos(cid,files){
+  if(!needDb())return;const list=[...files].slice(0,20);if(!list.length)return;
+  S.phBusy=cid;renderPanel();let ok=0,bad=0;
+  for(const f of list){try{const src=await shrinkPhoto(f);const id=cid+"~"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+      const p={caseId:cid,src,name:String(f.name||"").slice(0,80),at:Date.now(),by:getMe()||"?"};await S.db.doc("photos/"+id).set(p);
+      (S.photos[cid]=S.photos[cid]||[]).push({id,...p});ok++;if(S.panel===cid)renderPanel()}
+    catch(e){if(e&&e.code){writeFail(e);break}bad++}}
+  S.phBusy=null;renderPanel();
+  toast(ok?`Added ${pl(ok,"photo")}${bad?`; ${pl(bad,"file")} couldn't be read`:""}.`:"Couldn't read that image. Try a JPG or PNG.")}
+let phOpen=null;
+function closePhoto(){phOpen=null;$("#phView")?.remove()}
+function showPhoto(cid,id){const p=(S.photos[cid]||[]).find(x=>x.id===id);if(!p)return;closePhoto();phOpen={cid,id,arm:false};
+  document.body.insertAdjacentHTML("beforeend",`<div class="phview" id="phView" role="dialog" aria-modal="true" aria-label="Photo"><img alt="Case photo" src="${p.src}"><div><div class="meta">${esc(p.by||"")} · ${esc(fmtDT(p.at))}</div><div class="actions"><button class="btn" type="button" data-phclose>Close</button><button class="btn pri" type="button" data-phsend="${esc(p.id)}">${ic("send")}Share</button>${S.canWrite?'<button class="btn danger" type="button" data-phdel>Delete photo</button>':""}</div></div></div>`);
+  $("[data-phclose]").focus()}
+async function deletePhoto(btn){if(!phOpen||!needDb())return;
+  if(!phOpen.arm){phOpen.arm=true;btn.classList.add("armed");btn.textContent="Tap again to delete";return}
+  const {cid,id}=phOpen;btn.disabled=true;
+  try{await S.db.doc("photos/"+id).delete();S.photos[cid]=(S.photos[cid]||[]).filter(x=>x.id!==id);closePhoto();renderPanel();toast("Photo deleted.")}catch(e){btn.disabled=false;writeFail(e)}}
+async function deleteCasePhotos(cid){try{const s=await S.db.collection("photos").where("caseId","==",cid).get();for(const d of s.docs)await S.db.doc("photos/"+d.id).delete()}catch(e){}delete S.photos[cid]}
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&phOpen)closePhoto()});
+document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
+  const th=t.closest("[data-photo]");if(th){showPhoto(S.panel,th.dataset.photo);return}
+  if(t.closest("[data-phclose]")||t.id==="phView"){closePhoto();return}
+  const d=t.closest("[data-phdel]");if(d){deletePhoto(d);return}});
+/* send photos to a lab: the phone's share sheet when it can share files, otherwise save them and open an email */
+IC.send='<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>';IC.save='<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>';IC.mail='<path d="M3 5h18v14H3zM3 6l9 7 9-7"/>';
+function phFiles(c,list){const base=(c.patient||("Case "+(c.chart||""))).replace(/[^A-Za-z0-9 .-]+/g,"").trim().replace(/\s+/g,"-")||"case";
+  return Promise.all(list.map(async(p,i)=>{const b=await (await fetch(p.src)).blob();return new File([b],`${base}-${new Date(p.at||Date.now()).toISOString().slice(0,10)}-${i+1}.jpg`,{type:"image/jpeg"})}))}
+function phText(c){const lab=c.lab&&c.lab!=="inhouse"&&labOf(c.lab);const t=[c.patient||"",c.chart?"#"+c.chart:"",typeName(c),(c.teeth||[]).length?"Tooth "+teethLabel(c.teeth):"",c.fields&&c.fields.shade?"Shade "+c.fields.shade:"",c.due?"Due "+fmtD(c.due):""].filter(Boolean).join(" · ");
+  return {lab,subject:`Photos: ${[c.patient,typeName(c)].filter(Boolean).join(" – ")} – Toledo Dental Care`,text:t}}
+async function sendPhotos(cid,only){const c=caseOf(cid);const all=S.photos[cid]||[];const list=only?all.filter(p=>p.id===only):all;if(!c||!list.length)return;
+  const {lab,subject,text}=phText(c);let files;try{files=await phFiles(c,list)}catch(e){toast("Couldn't prepare the photos.");return}
+  try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:subject,text});notePhotosSent(c,list.length,lab);return}}
+  catch(e){if(e&&e.name==="AbortError")return}
+  closePhoto();$("#phSendDlg")?.remove();
+  const mail=lab&&lab.email?`mailto:${encodeURIComponent(lab.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text+"\n\nPhotos attached.\n")}`:"";
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="phSendDlg"><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="phsT"><h3 id="phsT">Send ${pl(list.length,"photo")}${lab?" to "+esc(lab.name):""}</h3>
+    <p>This device can't share files directly. Save the photos, then attach them to an email${lab&&lab.email?"":" or upload them to the lab's portal"}.</p>
+    <div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" data-phsave>${ic("save")}Save photos</button>${mail?`<a class="btn" href="${mail}" data-phmail>${ic("mail")}Email ${esc(lab.email)}</a>`:""}<button class="btn" type="button" data-copy="${esc(text)}">Copy case details</button></div>
+    <div class="actions"><button class="btn" type="button" data-phsendclose>Close</button></div></div></div>`);
+  const d=$("#phSendDlg");d._files=files;d._c=c;d._lab=lab}
+async function savePhotoFiles(btn){const d=$("#phSendDlg");if(!d)return;btn.disabled=true;let n=0;
+  for(const f of d._files){try{if(S.dl)await S.dl.save({filename:f.name,data:f});else{const u=URL.createObjectURL(f),a=document.createElement("a");a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}n++}catch(e){if(e&&e.code==="declined")break}}
+  btn.disabled=false;if(n){toast(`Saved ${pl(n,"photo")}.`);notePhotosSent(d._c,n,d._lab,true)}}
+function notePhotosSent(c,n,lab,saved){const me=getMe();if(!me||!S.canWrite)return;
+  patchCase(c,{comms:[...(c.comms||[]),{at:Date.now(),by:me,text:`${saved?"Saved":"Shared"} ${pl(n,"photo")}${lab?" for "+lab.name:""}`}]},`${saved?"Saved":"Shared"} ${pl(n,"photo")}`)}
+document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
+  if(t.closest("[data-phsend]")){sendPhotos(S.panel,t.closest("[data-phsend]").dataset.phsend||"");return}
+  if(t.closest("[data-phsendclose]")||t.id==="phSendDlg"){$("#phSendDlg")?.remove();return}
+  const s=t.closest("[data-phsave]");if(s){savePhotoFiles(s);return}});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape")$("#phSendDlg")?.remove()});
+function photosCard(c){const ph=S.photos[c.id],busy=S.phBusy===c.id;
+  return `<div class="card"><div class="stepshead"><h3>Photos${ph&&ph.length?` (${ph.length})`:""}</h3><div class="actions">${ph&&ph.length?`<button class="btn sm" type="button" data-phsend>${ic("send")}Send to lab</button>`:""}${S.canWrite?`<button class="btn sm" type="button" data-pick="photos"${busy?" disabled":""}>${ic("plus")}${busy?"Adding…":"Add photos"}</button>`:""}</div></div>
+    ${ph==null?'<p class="hint">Loading photos…</p>':ph.length?`<div class="phgrid">${ph.map(p=>`<button type="button" data-photo="${esc(p.id)}" aria-label="Open photo"><img alt="" loading="lazy" src="${p.src}"></button>`).join("")}</div>`:'<p class="hint">No photos yet. Add shade photos, the prep, the fit or the lab slip.</p>'}</div>`}
 function renderPanel(){
+  if(S.panel)loadPhotos(S.panel);
   const root=$("#panelRoot");
   const c=S.panel&&caseOf(S.panel);
   if(!c){root.innerHTML="";document.body.classList.remove("locked");return}
@@ -1378,6 +1457,7 @@ function renderPanel(){
         : `<div class="stp${s.done?" done":""}${i===ni&&isOpen(c)?" nextup":""}"><input type="checkbox" id="stp-${i}" data-step="${i}"${s.done?" checked":""}><label class="l" for="stp-${i}">${esc(s.l)}${s.done?`<span class="by"><span class="init">${esc(s.by||"?")}</span> ${esc(fmtDT(s.at))}</span>`:""}</label><span></span></div>`).join("")||'<p class="hint">No steps on this case yet.</p>'}</div>
       <form class="addstep" data-addstep><input id="addstep-in" placeholder="Add a check for this case (e.g. Shade photo sent)" autocomplete="off" aria-label="New step"><button class="btn sm" type="submit">Add</button></form>
     </div>
+    ${photosCard(c)}
     <div class="actions pacts">
       ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
       ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
@@ -1457,7 +1537,7 @@ function logoHTML(){const box=(k,title,hint)=>{const cur=S.logo[k],shown=cur||(k
     ${box("d","Dark mode logo (optional)",S.logo.d?"Used instead of the logo above when the page is in Dark mode.":"For a logo that's hard to see on a dark background. Without one, Dark mode uses "+(S.logo.l?"your logo above.":"the placeholder."))}</div>`}
 /* one file input outside the page content, so a redraw can't remove it while the file dialog is open */
 let PICK="";
-function openPick(kind){const i=$("#filePick");PICK=kind;i.value="";i.accept=kind==="import"?".json,.csv,application/json,text/csv":"image/png,image/jpeg,image/webp,image/gif,image/svg+xml";i.click()}
+function openPick(kind){const i=$("#filePick");PICK=kind;i.value="";i.multiple=kind==="photos";i.accept=kind==="import"?".json,.csv,application/json,text/csv":kind==="photos"?"image/*":"image/png,image/jpeg,image/webp,image/gif,image/svg+xml";i.click()}
 /* delete every case but keep the setup; the popup lives outside the page content so a redraw can't close it */
 let delBusy=false;
 function closeDelCases(){if(delBusy)return;$("#delcasesDlg")?.remove()}
@@ -1466,13 +1546,15 @@ async function askDelCases(){
   let n;try{n=(await S.db.collection("cases").get()).docs.length}catch(e){writeFail(e);return}
   if(!n){toast("There are no cases to delete.");return}
   closeDelCases();
-  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="delcasesDlg"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Are you sure?</h3><p id="delcD">This permanently deletes ${pl(n,"case")} for everyone in the office. Labs, team, case types, lists and the logo are kept. This can't be undone.</p><div class="actions"><button class="btn" type="button" data-delcases-no id="delcNo">Cancel</button><button class="btn danger solid" type="button" data-delcases-go>Yes, delete all cases</button></div></div></div>`);
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="delcasesDlg"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Are you sure?</h3><p id="delcD">This permanently deletes ${pl(n,"case")} for everyone in the office. Their photos are deleted too. Labs, team, case types, lists and the logo are kept. This can't be undone.</p><div class="actions"><button class="btn" type="button" data-delcases-no id="delcNo">Cancel</button><button class="btn danger solid" type="button" data-delcases-go>Yes, delete all cases</button></div></div></div>`);
   $("#delcNo").focus()}
 async function runDelCases(btn){
   if(delBusy)return;delBusy=true;btn.disabled=true;btn.textContent="Deleting…";$("#delcNo").disabled=true;
   try{for(;;){const docs=(await S.db.collection("cases").get()).docs;if(!docs.length)break;
       if(typeof TDC!=="undefined"&&TDC.batch)await TDC.batch(docs.map(d=>({op:"delete",col:"cases",id:d.id})));else for(const d of docs)await S.db.doc("cases/"+d.id).delete()}
-    delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
+    for(;;){const docs=(await S.db.collection("photos").limit(25).get()).docs;if(!docs.length)break;
+      if(typeof TDC!=="undefined"&&TDC.batch)await TDC.batch(docs.map(d=>({op:"delete",col:"photos",id:d.id})));else for(const d of docs)await S.db.doc("photos/"+d.id).delete()}
+    S.photos={};delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
   catch(e){delBusy=false;closeDelCases();writeFail(e)}}
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
 function viewSetup(){
@@ -1764,7 +1846,7 @@ document.addEventListener("click",async ev=>{
     if(ds.hold!==undefined){const on=c.state!=="hold";patchCase(c,{state:on?"hold":"open"},on?"Put on hold":"Taken off hold");return}
     if(ds.reopen!==undefined){patchCase(c,{state:"open",deliveredAt:""},"Reopened");return}
     if(ds.cancel!==undefined){if(!armed("cancel"+c.id))return;patchCase(c,{state:"cancelled"},"Cancelled");return}
-    if(ds.delcase!==undefined){if(!armed("del"+c.id))return;if(!needDb())return;try{await S.db.doc("cases/"+c.id).delete();S.panel=null;toast("Case deleted");render()}catch(e){writeFail(e)}return}
+    if(ds.delcase!==undefined){if(!armed("del"+c.id))return;if(!needDb())return;try{await S.db.doc("cases/"+c.id).delete();deleteCasePhotos(c.id);S.panel=null;toast("Case deleted");render()}catch(e){writeFail(e)}return}
   }
   /* labs */
   if(ds.labin!==undefined){const id=b.closest("[data-lab]")?.dataset.lab,l=labOf(id);if(!l||!needDb())return;const v=ds.labin==="1";if(!!l.inhouse===v)return;l.inhouse=v;render(true);if(await upd("labs/"+id,{inhouse:v,updatedAt:Date.now()}))toast(`${l.name} is now ${v?"an in-house lab":"an outside lab"}. Existing cases keep their steps.`);return}
@@ -1834,7 +1916,7 @@ document.addEventListener("change",async ev=>{
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
   if(el.id==="fState"){S.fState=el.value;S.fQuick="";render(true);return}
-  if(el.id==="filePick"){const f=el.files&&el.files[0],k=PICK;if(!f)return;if(k==="import"){const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f)}else uploadLogo(k==="logo-d"?"d":"l",f);el.value="";return}
+  if(el.id==="filePick"){const f=el.files&&el.files[0],k=PICK;if(!f)return;if(k==="photos"){const fs=[...el.files];el.value="";if(S.panel)addPhotos(S.panel,fs);return}if(k==="import"){const r=new FileReader();r.onload=()=>planImport(f.name,String(r.result||""));r.readAsText(f)}else uploadLogo(k==="logo-d"?"d":"l",f);el.value="";return}
   /* step checkbox */
   if(ds.step!==undefined){
     const c=caseOf(S.panel);if(!c)return;const me=getMe();
