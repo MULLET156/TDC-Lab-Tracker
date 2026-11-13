@@ -713,6 +713,28 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
 @media (max-width:640px){.stepshead>.actions{width:100%}.panel .stepshead>.actions .btn{flex:1 1 0;white-space:nowrap}}
 .phview .meta{color:#ddd;font-size:13px;text-align:center;padding-top:6px}
 </style>
+<style>
+/* case labels: black and white, sized per label printer; QR opens the case on the office site */
+.clbl{box-sizing:border-box;display:flex;align-items:center;gap:.08in;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
+.clbl .ct{flex:1;min-width:0;display:flex;flex-direction:column;gap:.015in}
+.clbl .cn{font-weight:800;line-height:1.08;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.clbl .cl{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clbl .cs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clbl .cr{display:inline-block;border:1.5px solid #000;font-weight:800;padding:0 .04in;margin-right:.04in}
+.clbl .cq{flex:none}
+.clbl .cq svg{display:block;width:100%;height:100%}
+.lblprev{display:flex;justify-content:center;padding:14px;background:var(--sunk);border-radius:12px;overflow:auto}
+.lblprev .clbl{box-shadow:0 1px 4px rgba(0,0,0,.25);border-radius:6px;flex:none}
+.dlg.wide{width:min(560px,100%)}
+.dlg select{border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:9px 10px;width:100%;min-height:42px}
+#printLabels{display:none}
+@media print{
+  html.printing-labels body > *:not(#printLabels){display:none!important}
+  html.printing-labels,html.printing-labels body{background:#fff!important;margin:0!important;padding:0!important}
+  html.printing-labels #printLabels{display:block!important}
+  #printLabels .clbl{border-radius:0;box-shadow:none}
+}
+</style>
 <header>
   <div class="wrap">
     <div class="top">
@@ -1429,6 +1451,68 @@ document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
   if(t.closest("[data-phsendclose]")||t.id==="phSendDlg"){$("#phSendDlg")?.remove();return}
   const s=t.closest("[data-phsave]");if(s){savePhotoFiles(s);return}});
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")$("#phSendDlg")?.remove()});
+/* ---------- case labels for the case box or bin ---------- */
+const OFFICE_SITE="https://mediumspringgreen-wallaby-123036.hostingersite.com/";
+const LABELS=[
+  {id:"d30252",name:"DYMO 30252 Address (1⅛″ × 3½″)",w:3.5,h:1.125,tip:"choose your DYMO LabelWriter, paper size <b>30252 Address</b>"},
+  {id:"d30336",name:"DYMO 30336 Small multipurpose (1″ × 2⅛″)",w:2.125,h:1,tip:"choose your DYMO LabelWriter, paper size <b>30336 1 in x 2-1/8 in</b>"},
+  {id:"d30334",name:"DYMO 30334 Medium multipurpose (1¼″ × 2¼″)",w:2.25,h:1.25,tip:"choose your DYMO LabelWriter, paper size <b>30334 2-1/4 in x 1-1/4 in</b>"},
+  {id:"d30256",name:"DYMO 30256 Shipping (2⁵⁄₁₆″ × 4″)",w:4,h:2.3125,tip:"choose your DYMO LabelWriter, paper size <b>30256 Shipping</b>"},
+  {id:"b1201",name:"Brother DK-1201 Address (29 × 90 mm)",w:3.5,h:1.14,tip:"choose your Brother QL printer, paper size <b>29mm x 90mm</b>"},
+  {id:"z2x1",name:"Zebra / Rollo 2″ × 1″",w:2,h:1,tip:"choose your Zebra or Rollo printer, paper size <b>2 x 1 in</b>"},
+  {id:"z4x6",name:"Zebra / Rollo 4″ × 6″ shipping",w:6,h:4,tip:"choose your Zebra or Rollo printer, paper size <b>4 x 6 in</b>, landscape"}];
+const lblPick=()=>{let v;try{v=localStorage.getItem("tdc-label")}catch(e){}return LABELS.find(l=>l.id===v)||LABELS[0]};
+let qrLoad;
+function loadQr(){if(window.qrcode)return Promise.resolve(true);
+  return qrLoad||=new Promise(res=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";s.onload=()=>res(!!window.qrcode);s.onerror=()=>{qrLoad=null;res(false)};document.head.appendChild(s)})}
+function qrSvg(text){try{const q=qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount();let d="";
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c+1} ${r+1}h1v1h-1z`;
+  return `<svg viewBox="0 0 ${n+2} ${n+2}" shape-rendering="crispEdges" aria-hidden="true"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`}catch(e){return ""}}
+const caseUrl=c=>(typeof TDC!=="undefined"?location.origin+location.pathname:OFFICE_SITE)+"#case="+encodeURIComponent(c.id);
+function caseLabelHtml(c,L){
+  const lab=c.lab&&c.lab!=="inhouse"&&labOf(c.lab),f=c.fields||{};
+  const q=Math.min(L.h,L.w*.42)-.12,pt=Math.max(6,Math.min(L.h*7.6,L.w*3.4,(L.w-q-.3)*6.2,16)),small=L.w<2.5;
+  const det=[(c.teeth||[]).length?"#"+teethLabel(c.teeth).replace(/^#/,""):"",f.shade?"Shade "+f.shade:"",small?"":f.material||""].filter(Boolean).join(" · ");
+  const when=[c.due?(lab?"Back ":"Ready ")+(small?new Date(c.due+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):fmtD(c.due)):"",c.seat&&!small?"Seat "+fmtD(c.seat):""].filter(Boolean).join(" · ");
+  const flags=[c.rush?"RUSH":"",c.remake?"REMAKE":""].filter(Boolean).map(x=>`<span class="cr">${x}</span>`).join("");
+  return `<div class="clbl" style="width:${L.w}in;height:${L.h}in;padding:.06in .08in .06in .12in">
+    <div class="ct"><div class="cn" style="font-size:${pt*1.25}pt">${flags}${esc(c.patient||"No name")}${c.chart?` <span style="font-weight:400;font-size:${pt}pt">#${esc(c.chart)}</span>`:""}</div>
+    <div class="cl" style="font-size:${pt}pt">${esc(typeName(c))}</div>
+    ${det?`<div class="cs" style="font-size:${pt*.9}pt">${esc(det)}</div>`:""}
+    ${when?`<div class="cs" style="font-size:${pt*.9}pt">${esc(when)}</div>`:""}
+    ${L.h>=1.1?`<div class="cs" style="font-size:${pt*.8}pt">${esc(lab?lab.name:IH().name)}${c.doctor?" · Dr. "+esc(c.doctor):""}</div>`:""}</div>
+    <div class="cq" style="width:${q}in;height:${q}in">${qrSvg(caseUrl(c))}</div></div>`}
+function closeLabel(){$("#lblDlg")?.remove()}
+async function caseLabel(cid){const c=caseOf(cid);if(!c)return;
+  if(!(await loadQr())){toast("Couldn't load the QR code maker. Check the internet connection and try again.");return}
+  closeLabel();const L=lblPick();
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="lblDlg"><div class="dlg wide" role="dialog" aria-modal="true" aria-labelledby="lblT">
+    <div class="sheethead"><h3 id="lblT">Case label</h3><button class="btn" type="button" data-lblclose>Close</button></div>
+    <div class="f"><label for="lblSize">Label printer and size</label><select id="lblSize">${LABELS.map(l=>`<option value="${l.id}"${l.id===L.id?" selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
+    <div class="lblprev" id="lblPrev">${caseLabelHtml(c,L)}</div>
+    <p class="hint" id="lblTip">In the print window: ${L.tip}, scale <b>100%</b> (or "Actual size"), margins <b>None</b>, and turn off headers and footers. Scanning the QR code with a phone camera opens this case${typeof TDC!=="undefined"?"":" on the office site"}.</p>
+    <div class="actions"><button class="btn pri" type="button" data-lblprint>${ic("save")}Print label</button></div></div></div>`);
+  $("#lblDlg")._cid=cid}
+function lblRefresh(){const d=$("#lblDlg");if(!d)return;const c=caseOf(d._cid),L=lblPick();if(!c)return;$("#lblPrev").innerHTML=caseLabelHtml(c,L);
+  $("#lblTip").innerHTML=$("#lblTip").innerHTML.replace(/^In the print window: .*?, scale/,"In the print window: "+L.tip+", scale")}
+function printLabel(){const d=$("#lblDlg");if(!d)return;const c=caseOf(d._cid),L=lblPick();if(!c)return;
+  let box=$("#printLabels");if(!box){box=document.createElement("div");box.id="printLabels";document.body.appendChild(box)}
+  let pg=$("#lblPage");if(!pg){pg=document.createElement("style");pg.id="lblPage";document.head.appendChild(pg)}
+  pg.textContent=`@media print{@page{size:${L.w}in ${L.h}in;margin:0}}`;
+  box.innerHTML=caseLabelHtml(c,L);document.documentElement.classList.add("printing-labels");
+  const done=()=>{document.documentElement.classList.remove("printing-labels");box.innerHTML="";pg.textContent="";removeEventListener("afterprint",done)};
+  addEventListener("afterprint",done);setTimeout(()=>{try{window.print()}catch(e){toast("Printing isn't available here. Open the office site to print labels.")}setTimeout(done,60000)},60)}
+document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
+  if(t.closest("[data-caselabel]")){caseLabel(S.panel);return}
+  if(t.closest("[data-lblclose]")||t.id==="lblDlg"){closeLabel();return}
+  if(t.closest("[data-lblprint]")){printLabel();return}});
+document.addEventListener("change",ev=>{if(ev.target.id==="lblSize"){try{localStorage.setItem("tdc-label",ev.target.value)}catch(e){}lblRefresh()}});
+document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeLabel()});
+/* a scanned label opens its case: #case=<id> */
+let hashCase=null;
+function readHashCase(){const m=/^#case=([^&]+)/.exec(location.hash||"");if(m){hashCase=decodeURIComponent(m[1]);try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}openHashCase()}
+function openHashCase(){if(!hashCase||!S.loaded||!S.loaded.c)return;const id=hashCase;hashCase=null;if(caseOf(id)){S.tab="cases";S.panel=id;render(true)}else toast("That case isn't in this tracker.")}
+addEventListener("hashchange",readHashCase);readHashCase();
 function photosCard(c){const ph=S.photos[c.id],busy=S.phBusy===c.id;
   return `<div class="card"><div class="stepshead"><h3>Photos${ph&&ph.length?` (${ph.length})`:""}</h3><div class="actions">${ph&&ph.length?`<button class="btn sm" type="button" data-phsend>${ic("send")}Send to lab</button>`:""}${S.canWrite?`<button class="btn sm" type="button" data-pick="photos"${busy?" disabled":""}>${ic("plus")}${busy?"Adding…":"Add photos"}</button>`:""}</div></div>
     ${ph==null?'<p class="hint">Loading photos…</p>':ph.length?`<div class="phgrid">${ph.map(p=>`<button type="button" data-photo="${esc(p.id)}" aria-label="Open photo"><img alt="" loading="lazy" src="${p.src}"></button>`).join("")}</div>`:'<p class="hint">No photos yet. Add shade photos, the prep, the fit or the lab slip.</p>'}</div>`}
@@ -1462,7 +1546,7 @@ function renderPanel(){
       ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
       ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
     </div>
-    <div class="actions">${S.dl?'<button class="btn" data-saveslip title="Saves a PDF you can open and print">Lab slip (PDF)</button>':""}<button class="btn" data-samepatient>+ New case for this patient</button></div>
+    <div class="actions"><button class="btn" type="button" data-caselabel>Print label</button>${S.dl?'<button class="btn" data-saveslip title="Saves a PDF you can open and print">Lab slip (PDF)</button>':""}<button class="btn" data-samepatient>+ New case for this patient</button></div>
     ${lab?`<div class="card contact"><h3>${esc(lab.name)}</h3>
       ${lab.contact?`<div>Contact: ${esc(lab.contact)}</div>`:""}
       ${c.sentAt?`<div>Sent ${esc(fmtD(c.sentAt))}${c.tracking?` · Tracking <span class="v">${esc(c.tracking)}</span>`:""}</div>`:""}
@@ -2144,7 +2228,7 @@ render(true);
   const fix=d=>{const c={id:d.id,...d.data()};if(!c.lab)c.lab="inhouse";if(!Array.isArray(c.steps))c.steps=[];return c};
   let openSet=[],recentSet=[],gotO=false,gotR=false;
   const merge=()=>{const m=new Map();for(const c of [...recentSet,...openSet]){const e=m.get(c.id);if(!e||(c.updatedAt||0)>=(e.updatedAt||0))m.set(c.id,c)}
-    S.cases=[...m.values()].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));if(gotO&&gotR){S.loaded.c=true;if(!pending)idle();autoHold()}snapRender()};
+    S.cases=[...m.values()].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));if(gotO&&gotR){S.loaded.c=true;if(!pending)idle();autoHold()}snapRender();openHashCase()};
   const lost=()=>{gotO=gotR=true;S.loaded.c=true;sync("err","Connection lost");render()};
   db.collection("cases").where("state","in",["open","hold"]).onSnapshot(s=>{openSet=s.docs.map(fix);gotO=true;merge()},lost);
   /* newest cases of any status; "Load older cases" raises the limit */
