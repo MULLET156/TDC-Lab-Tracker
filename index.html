@@ -1712,7 +1712,11 @@ let ptrDown=false,blurWaiting=false;
 document.addEventListener("pointerdown",()=>{ptrDown=true},true);
 document.addEventListener("pointerup",()=>{ptrDown=false;if(blurWaiting){blurWaiting=false;setTimeout(blurRender,0)}},true);
 document.addEventListener("pointercancel",()=>{ptrDown=false;if(blurWaiting){blurWaiting=false;setTimeout(blurRender,0)}},true);
-document.addEventListener("focusout",()=>{if(ptrDown){blurWaiting=true;return}setTimeout(blurRender,0)});
+/* only leaving a field needs a redraw; leaving a button or a card must not, or the click that follows is lost */
+document.addEventListener("focusout",ev=>{const t=ev.target;if(!(t&&t.matches&&t.matches("input,select,textarea")))return;if(ptrDown){blurWaiting=true;return}setTimeout(blurRender,0)});
+/* remember a card as open the moment its header is clicked, so a redraw right after can't close it again */
+document.addEventListener("click",ev=>{const s=ev.target.closest&&ev.target.closest("summary");const d=s&&s.parentElement;if(!d||d.tagName!=="DETAILS")return;const on=!d.open;
+  const set=d.matches("details.tcard")?S.openT:d.matches("details.labcard")?S.openL:d.matches("details.optcard")?S.openO:null;const key=d.dataset.tid||d.dataset.lab||d.dataset.opt;if(set&&key)on?set.add(key):set.delete(key)},true);
 
 /* ---------- export / import ---------- */
 function csvCell(v){v=v==null?"":String(v);if(/^[=+\-@\t]/.test(v)&&!/^-?\d/.test(v))v="'"+v;return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
