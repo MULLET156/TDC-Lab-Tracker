@@ -200,6 +200,10 @@ header .tile b{font-size:20px}
 .pill.out{background:var(--out-soft);color:var(--out)}
 .pill.rush{background:var(--late);color:var(--surface)}
 .pill.late{background:var(--late-soft);color:var(--late)}
+.pill.od{background:var(--sunk);color:var(--muted);border:1px solid var(--line)}
+.pill.needtype,.pill.type.needtype,.pill.type.needtype[data-k]{background:var(--late-soft);color:var(--late);font-weight:800}
+.odnote{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--sunk);font-size:13px}
+.odnote.err{background:var(--late-soft);color:var(--late)}
 .pill.st{background:var(--cs);color:var(--c)}
 [data-s=delivered] .pill.st,[data-s=cancelled] .pill.st{color:var(--muted)}
 .teeth{font-family:var(--f-mono);font-weight:600;font-size:12.5px;color:var(--fg)}
@@ -946,7 +950,7 @@ const F=()=>{const o={};for(const k in FIELDS)o[k]={...FIELDS[k]};for(const[k,v]
 const KINDS={text:"Text",num:"Number",select:"Dropdown",date:"Date"};
 const kindOf=f=>f.opts?"select":f.num?"num":f.kind==="date"?"date":"text";
 const typeOf=id=>TYPES().find(t=>t.id===id);
-const typeName=c=>(typeOf(c.type)||{}).name||c.typeName||"Lab case";
+const typeName=c=>(typeOf(c.type)||{}).name||c.typeName||(c.od&&!c.type?"Pick case type":"Lab case");
 const labOf=id=>S.labs.find(l=>l.id===id);
 /* the main in-house lab lives at labs/inhouse (cases use lab "inhouse"); any other lab can also be marked in-house */
 const IH=()=>({id:"inhouse",name:"In-house",...(labOf("inhouse")||{}),inhouse:true});
@@ -1099,6 +1103,13 @@ function autoHold(){
     upd("cases/"+c.id,{state:"hold",autoHeldFor:c.seat,log:c.log,updatedAt:now,updatedBy:"Auto"});
   }
 }
+/* cases created in Open Dental: what syncs, and any write-back problem */
+function odNote(c){
+  if(!c.od)return"";
+  const od=c.od,err=od.lastError?`<div class="odnote err">Open Dental wasn't updated: ${esc(od.lastError)}</div>`:"";
+  const told=od.readyReported>0?" Open Dental has been told it's ready to deliver.":"";
+  return `<div class="odnote">From Open Dental. Patient, lab, doctor and dates follow Open Dental when they change there.${c.type?"":" <b>Pick the case type under Case details to add its steps.</b>"} When every step is checked off, Open Dental marks the case checked and notes the delivery appointment.${isIn(c)?"":" Setting the sent date here also marks it sent in Open Dental."}${told}</div>${err}`;
+}
 function patchCase(c,patch,what){
   Object.assign(c,patch);if(what)c.log=logAdd(c,what);
   const p={...patch,updatedAt:Date.now(),updatedBy:getMe()||""};if(what)p.log=c.log;
@@ -1127,8 +1138,8 @@ function toothPicker(sel,ctx){
     <div class="tlab"><span>Lower · patient's right</span><span>left</span></div></div>
   <div class="tquick"><button type="button" class="btn sm" data-arch="U">Whole upper</button><button type="button" class="btn sm" data-arch="L">Whole lower</button><button type="button" class="btn sm" data-arch="C">Clear</button><span class="sel">${esc(teethLabel(sel))||'<span class="hint">No teeth picked</span>'}</span></div>`;
 }
-function typeOptions(cur){
-  return GROUPS.map(g=>{const ts=TYPES().filter(t=>(t.group||"Other")===g&&(!t.off||t.id===cur));return ts.length?`<optgroup label="${esc(g)}">${ts.map(t=>`<option value="${esc(t.id)}"${t.id===cur?" selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`:""}).join("");
+function typeOptions(cur,ask){
+  return (ask&&!cur?'<option value="" selected disabled>Choose case type…</option>':"")+GROUPS.map(g=>{const ts=TYPES().filter(t=>(t.group||"Other")===g&&(!t.off||t.id===cur));return ts.length?`<optgroup label="${esc(g)}">${ts.map(t=>`<option value="${esc(t.id)}"${t.id===cur?" selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`:""}).join("");
 }
 function labOptions(cur){
   const labs=extLabs().filter(l=>!l.off||l.id===cur),o=l=>`<option value="${esc(l.id)}"${l.id===cur?" selected":""}>${esc(l.name)}</option>`,ins=labs.filter(l=>l.inhouse),outs=labs.filter(l=>!l.inhouse);
@@ -1142,7 +1153,7 @@ function caseForm(c,ctx){
   const typeCtl=ctx==="new"
     ? `<div class="f full"><span class="lbl">Case type</span><div class="typepick">${GROUPS.map(g=>{const ts=TYPES().filter(x=>(x.group||"Other")===g&&(!x.off||x.id===c.type));return ts.length?`<div class="tgrp"><span>${esc(g)}</span><div class="tchips">${ts.map(x=>`<button type="button" class="tchip kc" data-k="${kIndex("t:"+x.id)}" data-pick-type="${esc(x.id)}" aria-pressed="${x.id===c.type}"><i class="kdot"></i>${esc(x.name)}</button>`).join("")}</div></div>`:""}).join("")}</div></div>
        <div class="f full"><span class="lbl">Made by</span><div class="where"><button type="button" class="tchip kc" data-k="${kIndex("lab:inhouse")}" data-pick-lab="inhouse" aria-pressed="${c.lab==="inhouse"}"><i class="kdot"></i>${esc(IH().name)}</button>${extLabs().filter(l=>!l.off||l.id===c.lab).map(l=>`<button type="button" class="tchip kc" data-k="${kIndex("lab:"+l.id)}" data-pick-lab="${esc(l.id)}" aria-pressed="${c.lab===l.id}"><i class="kdot"></i>${esc(l.name)}</button>`).join("")}</div>${extLabs().some(l=>!l.off)?"":'<p class="hint">Add or turn on outside labs in Setup to send cases out.</p>'}</div>`
-    : `<div class="f"><label for="${p}-type">Case type</label><select id="${p}-type" data-cf="type">${typeOptions(c.type)}</select></div>
+    : `<div class="f"><label for="${p}-type">Case type</label><select id="${p}-type" data-cf="type">${typeOptions(c.type,true)}</select></div>
        <div class="f"><label for="${p}-lab">Made by</label><select id="${p}-lab" data-cf="lab">${labOptions(c.lab||"inhouse")}</select></div>`;
   return `<div class="fields">
     <div class="f"><label for="${p}-ch">Patient #</label><input id="${p}-ch" data-cf="chart" class="mono" value="${esc(c.chart)}" autocomplete="off" inputmode="numeric"></div>
@@ -1235,13 +1246,13 @@ function caseRow(c){
   const extras=[out&&c.sentAt&&"Sent "+fmtD(c.sentAt),fv.shade&&"Shade "+fv.shade,fv.tibase&&"Ti-base "+fv.tibase,fv.arch].filter(Boolean).map(esc).join(" · ");
   const dueTxt=c.state==="delivered"?(c.deliveredAt?"Delivered "+fmtD(c.deliveredAt):"Delivered"):(c.due?(late?"Late · ":(out?"Back ":"Ready by "))+fmtD(c.due):"No due date");
   const seatTxt=c.seat&&isOpen(c)?`<span class="seat${seatPassed(c)||is911(c)?" warn":""}">Delivery ${esc(fmtD(c.seat))}</span>`:"";
-  const flags=(is911(c)?'<span class="pill p911">🚨 911</span>':"")+(seatPassed(c)?'<span class="pill nnd">Needs new delivery date</span>':"")+(isTight(c)?'<span class="pill tight">Tight: back right before delivery</span>':"")+(c.remake?'<span class="pill remake">Remake</span>':"");
+  const flags=(is911(c)?'<span class="pill p911">🚨 911</span>':"")+(seatPassed(c)?'<span class="pill nnd">Needs new delivery date</span>':"")+(isTight(c)?'<span class="pill tight">Tight: back right before delivery</span>':"")+(c.remake?'<span class="pill remake">Remake</span>':"")+(c.od?'<span class="pill od" title="Created in Open Dental">OD</span>':"");
   const k=caseK(c),dot=`<i class="kdot" data-k="${k}"></i>`;
   return `<button class="crow" data-open="${esc(c.id)}" data-s="${st}" data-k="${k}">
     <span class="strip"></span>
     <span class="cmain">
       <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:""}</span>
-      <span class="cmeta"><span class="pill type" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${flags}${extras?`<span>${extras}</span>`:""}</span>
+      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${flags}${extras?`<span>${extras}</span>`:""}</span>
       <span class="next">${isOpen(c)?(nx?`Next: <b>${esc(nx.l)}</b>`:(c.state==="hold"&&allDone(c)?'<span class="pill st">On hold</span> <span class="pill st">Ready to deliver</span>':`<span class="pill st">${STAGE[st]}</span>`)):`<span class="pill st">${STAGE[st]}</span>`}${c.state==="hold"&&nx?' <span class="pill st">On hold</span>':""}${lastBy}</span>
     </span>
     <span class="cside">${S.fState==="all"&&c.createdAt>1e11?`<span class="created">Created ${esc(fmtD(iso(new Date(c.createdAt))))}</span>`:""}<span class="due${late?" late":""}">${esc(dueTxt)}</span>${seatTxt}<span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d}/${steps.length} steps</span></span>
@@ -1529,8 +1540,8 @@ function renderPanel(){
   /* slide in only when the sheet opens, not on every redraw */
   root.innerHTML=`<div class="scrim" data-scrim><div class="panel${prev?"":" enter"}" role="dialog" aria-modal="true" aria-labelledby="ph-t">
     <div class="ph"><div><h2 id="ph-t">${esc(c.patient||"Patient")}${c.chart?` <span class="pc">#${esc(c.chart)}</span>`:""}${c.dob?` <span class="pc">DOB ${esc(fmtDOB(c.dob))}</span>`:""}</h2>
-      <div class="sub" data-s="${st}"><span class="pill type" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span><span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
-      <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p></div>
+      <div class="sub" data-s="${st}"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span><span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
+      <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
       <button class="btn sm" data-close aria-label="Close">Close</button></div>
     ${seatBar(c)}
     <div class="card">
