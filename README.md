@@ -34,7 +34,7 @@ The office's Open Dental gateway (from [opendental-claude](https://github.com/MU
 - **Outside-lab cases:** setting the sent date here also marks the case sent in Open Dental.
 - If Open Dental changes the patient, lab, doctor, sent, due or delivery date, the change shows up here and is written to the case's history. Edits made here stay until Open Dental changes that same field.
 
-What's sent here from the office: first initial and last name only (never date of birth, chart number or Open Dental record numbers). Cases are matched by a code that only the gateway can link back to Open Dental. Nothing on this site can reach into the office; the gateway starts every exchange.
+What's sent here from the office: first initial and last name, and Open Dental's patient number (PatNum) when the gateway's `sendPatNum` setting is on. Never date of birth, chart number or other Open Dental record numbers. Cases are matched by a code that only the gateway can link back to Open Dental. Nothing on this site can reach into the office; the gateway starts every exchange.
 
 To turn it on:
 
