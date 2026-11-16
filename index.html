@@ -1592,7 +1592,6 @@ function renderPanel(){
         : `<div class="stp${s.done?" done":""}${i===ni&&isOpen(c)?" nextup":""}"><input type="checkbox" id="stp-${i}" data-step="${i}"${s.done?" checked":""}><label class="l" for="stp-${i}">${esc(s.l)}${s.done?`<span class="by"><span class="init">${esc(s.by||"?")}</span> ${esc(fmtDT(s.at))}</span>`:""}</label><span></span></div>`).join("")||'<p class="hint">No steps on this case yet.</p>'}</div>
       <form class="addstep" data-addstep><input id="addstep-in" placeholder="Add a check for this case (e.g. Shade photo sent)" autocomplete="off" aria-label="New step"><button class="btn sm" type="submit">Add</button></form>
     </div>
-    ${photosCard(c)}
     <div class="actions pacts">
       ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
       ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
@@ -1610,6 +1609,7 @@ function renderPanel(){
       <form class="addstep comm-add" data-addcomm><textarea id="addcomm-in" rows="2" placeholder="e.g. Called lab, shade changed to A3. Talked to Sarah." aria-label="New lab note"></textarea><button class="btn sm" type="submit">Add note</button></form></div>`:""}
     <div class="card" data-form="edit"><h3>Case details</h3>${caseForm(c,"edit")}<p class="hint">Changes save when you leave a field.${c.updatedBy?` Last change by ${esc(c.updatedBy)} · ${esc(fmtDT(c.updatedAt))}.`:""}</p></div>
     <details class="card"><summary>History (${(c.log||[]).length})</summary><div class="log">${(c.log||[]).slice().reverse().map(e=>`<div><time>${esc(fmtDT(e.at))}</time><span class="init">${esc(e.by)}</span><span>${esc(e.what)}</span></div>`).join("")}</div></details>
+    ${photosCard(c)}
     <div class="actions"><button class="btn danger${S.arm==="del"+c.id?" armed":""}" data-delcase>${S.arm==="del"+c.id?"Tap again to delete for good":"Delete case"}</button></div>
   </div></div>`;
   const pn=root.querySelector(".panel");if(pn)pn.scrollTop=keep;
