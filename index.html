@@ -977,6 +977,7 @@ function saveLists(next){S.lists=next;render(true);return setDoc("settings/lists
 const listsNow=()=>({...(S.lists||{}),shades:[...SHADE_LIST()],matCats:MATCATS().map(c=>({...c,items:[...c.items]}))});
 const REMAKES=()=>(S.lists&&Array.isArray(S.lists.remakeReasons)&&S.lists.remakeReasons.length)?S.lists.remakeReasons:REMAKE_REASONS;
 const DOCTORS=()=>(S.lists&&Array.isArray(S.lists.doctors))?S.lists.doctors:[];
+const DEF_DOCTOR=()=>(S.lists&&typeof S.lists.defaultDoctor==="string")?S.lists.defaultDoctor:"";
 /* ---------- case colors ---------- */
 const KNAMES=["Teal","Purple","Rose","Amber","Blue","Green","Brown","Slate"];
 const GROUP_K=[0,1,2,3,4,7],LAB_K=[4,1,2,6,7,0,3,5];
@@ -1328,7 +1329,7 @@ function viewCases(){
 }
 
 /* ---------- new case ---------- */
-function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",teeth:[],fields:{},due:"",seat:"",doctor:"",rush:false,remake:false,remakeReason:"",notes:"",labNo:"",tracking:"",fee:"",sentAt:"",dueAuto:true}}
+function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",teeth:[],fields:{},due:"",seat:"",doctor:DEF_DOCTOR(),rush:false,remake:false,remakeReason:"",notes:"",labNo:"",tracking:"",fee:"",sentAt:"",dueAuto:true}}
 /* fill the ready-by / due-back date from the default, unless someone typed a date */
 function autoDue(d){if(!d.dueAuto&&d.due)return;const x=defDue(d);if(!x)return;let v=addDays(todayISO(),x.n);if(d.seat&&v>d.seat)v=d.seat;d.due=v;d.dueAuto=true}
 function viewNew(){
@@ -1727,7 +1728,8 @@ function viewMaterials(){
     <p class="hint">Each case type's material categories and default material are set in its Edit card under Case types & checklists.</p>`)}
   ${dets}
   ${optCard("remake","Remake reasons",pl(REMAKES().length,"reason"),`<div class="f"><label for="oremake">Reasons (separate with commas)</label><textarea id="oremake" data-olists="remakeReasons" rows="2">${esc(REMAKES().join(", "))}</textarea></div><p class="hint">Offered when a case is marked as a remake.</p>`)}
-  ${optCard("doctors","Doctors",pl(DOCTORS().length,"doctor"),`<div class="f"><label for="odocs">Doctors (separate with commas)</label><textarea id="odocs" data-olists="doctors" rows="2" placeholder="e.g. Dr. Millet">${esc(DOCTORS().join(", "))}</textarea></div><p class="hint">Suggested in the Doctor field, along with any doctor already typed on a case.</p>`)}
+  ${optCard("doctors","Doctors",pl(DOCTORS().length,"doctor")+(DEF_DOCTOR()?" · default "+DEF_DOCTOR():""),`<div class="f"><label for="odocs">Doctors (separate with commas)</label><textarea id="odocs" data-olists="doctors" rows="2" placeholder="e.g. Dr. Millet">${esc(DOCTORS().join(", "))}</textarea></div><p class="hint">Suggested in the Doctor field, along with any doctor already typed on a case.</p>
+    <div class="f"><label for="odefdoc">Default doctor</label><select id="odefdoc" data-odefdoc><option value="">None</option>${[...new Set([...DOCTORS(),DEF_DOCTOR()].filter(Boolean))].map(d=>`<option${d===DEF_DOCTOR()?" selected":""}>${esc(d)}</option>`).join("")}</select></div><p class="hint">Filled in on every new case. You can still change it on the case.</p>`)}
   `)}</div>`;
 }
 /* inside a case type's Edit card: which material categories it offers, and the default */
@@ -2067,6 +2069,7 @@ document.addEventListener("change",async ev=>{
     if(ds.olabel){if(!v||v===cur.label){el.value=cur.label;return}saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),label:v}});return}
     if(ds.oopts){if(!arr.length){el.value=cur.opts.join(", ");toast("A dropdown needs at least one choice.");return}saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),opts:arr}});return}
     saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),list:arr}});return}
+  if(el.id==="odefdoc"){const old=DEF_DOCTOR();saveLists({...listsNow(),defaultDoctor:el.value});if(S.draft&&(!S.draft.doctor||S.draft.doctor===old))S.draft.doctor=el.value;toast(el.value?"New cases start with "+el.value+".":"No default doctor.");return}
   if(ds.olists){const arr=[...new Set(el.value.split(",").map(x=>x.trim()).filter(Boolean))];saveLists({...listsNow(),[ds.olists]:arr});toast("Saved");return}
   /* shades & materials */
   if(ds.mcname!==undefined){const id=el.closest("[data-mc]")?.dataset.mc,l=listsNow(),mc=l.matCats.find(x=>x.id===id),v=el.value.trim();if(!mc)return;if(!v){el.value=mc.name;return}if(v===mc.name)return;mc.name=v;saveLists(l);return}
