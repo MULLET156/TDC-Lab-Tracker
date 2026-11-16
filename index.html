@@ -1,8 +1,15 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>TDC LAB TRACKER</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4E5833">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Lab Tracker">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<title>TDC Lab Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: one working column. Sticky header with who's-working + tabs; Cases list grouped by due date; case detail opens as a sheet with the step checklist on top */
 :root{
@@ -14,6 +21,7 @@
   --hold:#8a4b00; --hold-soft:#fbead2; --late:#b3261e; --late-soft:#f9dedb; --new:#767d74; --new-soft:#ebece6;
   --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
   --r:10px;
   --k0:#0f7c80; --k1:#7a4fb5; --k2:#c2417a; --k3:#b7791f; --k4:#2f6fd0; --k5:#3d8b3d; --k6:#8a5a3b; --k7:#5b6b7a;
 }
@@ -59,7 +67,7 @@ header .wrap{padding-block:10px;display:grid;gap:10px}
 /* phones: logo and name share one line so the sticky header takes less of the screen */
 .logo-icon{display:none}
 @media (max-width:520px){.brand{display:flex;align-items:center;gap:10px}.logo{margin:0}.logo-full{display:none}.logo-icon{display:block}.logo img{height:42px}.brand b{font-size:19px}header .wrap{gap:8px;padding-top:8px}}
-.brand b{font-size:clamp(26px,5vw,32px);font-weight:800;letter-spacing:-.01em;color:var(--slate);line-height:1.05}
+.brand b{font-family:var(--f-display);font-stretch:80%;font-size:clamp(26px,5vw,32px);font-weight:800;letter-spacing:-.01em;color:var(--slate);line-height:1.05}
 /* header right: New case and a Menu button; Setup, who's working, theme, sound and sync sit in the menu */
 header .wrap{position:relative}
 .topright{display:flex!important;align-items:center;gap:8px;margin-left:auto}
@@ -236,7 +244,7 @@ header .tile b{font-size:20px}
 .f .chkl input:checked::before{content:"";width:11px;height:6px;border:solid var(--surface);border-width:0 0 3px 3px;transform:translateY(-2px) rotate(-45deg)}
 @media (max-width:520px){.fields{grid-template-columns:1fr}.chkl{padding-top:0}.f.chkrow{min-height:0}}
 .pagehead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between}
-.pagehead h2{margin:0;font-size:22px;font-weight:800;color:var(--slate);text-wrap:balance}
+.pagehead h2{margin:0;font-family:var(--f-display);font-stretch:85%;font-size:22px;font-weight:800;color:var(--slate);text-wrap:balance}
 
 .typepick{display:grid;gap:10px}
 .tgrp{display:grid;gap:6px}
@@ -511,7 +519,7 @@ header .hdr-date{display:inline}
 .sg-brand{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
 .sg-brand .logo{display:block!important;margin:0 0 6px}
 .sg-brand .logo img{height:96px;width:auto;margin:0 auto}
-.sg-brand h1{margin:0;font-weight:800;font-size:28px;line-height:1.05}
+.sg-brand h1{margin:0;font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:28px;line-height:1.05}
 .sg-brand p{margin:0;color:var(--muted);font-size:14px}
 #signinForm{display:flex;flex-direction:column;gap:10px}
 #signinForm label{font-size:13px;font-weight:600;color:var(--muted)}
@@ -745,7 +753,7 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
       <div class="brand" data-home role="link" tabindex="0" title="All cases"><span class="logo logo-full"><img class="logo-l" alt="Logo placeholder" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22128%22%20viewBox%3D%220%200%20400%20128%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%22396%22%20height%3D%22124%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23767d74%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%2210%208%22%2F%3E%3Ctext%20x%3D%22200.0%22%20y%3D%2264.0%22%20dy%3D%22.35em%22%20text-anchor%3D%22middle%22%20font-family%3D%22system-ui%2C-apple-system%2CSegoe%20UI%2Csans-serif%22%20font-size%3D%2236%22%20font-weight%3D%22700%22%20fill%3D%22%23767d74%22%3EYour%20logo%20here%3C%2Ftext%3E%3C%2Fsvg%3E"><img class="logo-d" alt="Logo placeholder" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22128%22%20viewBox%3D%220%200%20400%20128%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%22396%22%20height%3D%22124%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%239aa69f%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%2210%208%22%2F%3E%3Ctext%20x%3D%22200.0%22%20y%3D%2264.0%22%20dy%3D%22.35em%22%20text-anchor%3D%22middle%22%20font-family%3D%22system-ui%2C-apple-system%2CSegoe%20UI%2Csans-serif%22%20font-size%3D%2236%22%20font-weight%3D%22700%22%20fill%3D%22%239aa69f%22%3EYour%20logo%20here%3C%2Ftext%3E%3C%2Fsvg%3E"></span><span class="logo logo-icon"><img class="logo-l" alt="Logo placeholder" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22128%22%20height%3D%22128%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%22124%22%20height%3D%22124%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%23767d74%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%2210%208%22%2F%3E%3Ctext%20x%3D%2264.0%22%20y%3D%2264.0%22%20dy%3D%22.35em%22%20text-anchor%3D%22middle%22%20font-family%3D%22system-ui%2C-apple-system%2CSegoe%20UI%2Csans-serif%22%20font-size%3D%2232%22%20font-weight%3D%22700%22%20fill%3D%22%23767d74%22%3ELogo%3C%2Ftext%3E%3C%2Fsvg%3E"><img class="logo-d" alt="Logo placeholder" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22128%22%20height%3D%22128%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20x%3D%222%22%20y%3D%222%22%20width%3D%22124%22%20height%3D%22124%22%20rx%3D%2210%22%20fill%3D%22none%22%20stroke%3D%22%239aa69f%22%20stroke-width%3D%223%22%20stroke-dasharray%3D%2210%208%22%2F%3E%3Ctext%20x%3D%2264.0%22%20y%3D%2264.0%22%20dy%3D%22.35em%22%20text-anchor%3D%22middle%22%20font-family%3D%22system-ui%2C-apple-system%2CSegoe%20UI%2Csans-serif%22%20font-size%3D%2232%22%20font-weight%3D%22700%22%20fill%3D%22%239aa69f%22%3ELogo%3C%2Ftext%3E%3C%2Fsvg%3E"></span><span class="title-row"><b>Lab Tracker</b><span class="hdr-date" id="hdrDate"></span></span></div>
       <div class="topright"><nav class="tabs" id="tabs" aria-label="Sections"></nav><button class="menubtn" id="menuBtn" type="button" aria-expanded="false" aria-controls="hdrMenu"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="mlabel">Menu</span><i class="mwarn" id="mwarn" hidden></i></button>
         <div class="hdrmenu" id="hdrMenu" hidden>
-          <div class="whoami" id="whoami"><label for="who">Working:</label><select id="who"></select></div>
+          <div class="whoami" id="whoami"><label for="who">Logging as</label><select id="who"></select></div>
           <button class="mi" id="setupBtn" type="button" data-tab="setup" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Setup</button>
           <div class="mrow"><button class="toolbtn icon" id="themeBtn" type="button" data-theme-toggle aria-label="Switch theme"></button><button class="toolbtn icon" id="snd" type="button"></button><div class="sync" role="status"><span class="dot busy" id="dot"></span><span id="syncTxt">Connecting…</span></div></div>
         </div></div>
@@ -1779,6 +1787,10 @@ const swap=(a,i,d)=>{const j=i+d;if(j<0||j>=a.length)return false;[a[i],a[j]]=[a
 
 /* ---------- render ---------- */
 let lastTab=null,lastShades="";
+/* same "Who's logging?" card as Maintenance Tracker and Supply Room, until initials are picked */
+function syncWhoCard(){const v=$("#view");if(!v)return;const c=$("#whoCard"),need=!getMe()&&S.tab!=="setup"&&S.team.length>0;
+  if(need&&!c)v.insertAdjacentHTML("afterbegin",`<div class="empty" id="whoCard" style="text-align:left"><strong>Who's logging?</strong>Pick your initials next to "Logging as" at the top. This device remembers them, and every case you create or step you check off is stamped with them.</div>`);
+  else if(!need&&c)c.remove()}
 function render(force){
   applyCustomK();
   if(S.dragging)return;
@@ -1790,6 +1802,7 @@ function render(force){
     lastTab=S.tab;
   }
   if(S.tab==="cases")renderList();
+  syncWhoCard();
   renderPanel();
   const docs=[...new Set([...DOCTORS(),...S.cases.map(c=>c.doctor).filter(Boolean)])];
   /* suggestion lists for case details follow Setup → Case options */
@@ -2011,7 +2024,7 @@ document.addEventListener("input",ev=>{
 });
 document.addEventListener("change",async ev=>{
   const el=ev.target,ds=el.dataset;
-  if(el.id==="who"){setMe(el.value);renderHead();if(el.value)toast("Working as "+el.value);return}
+  if(el.id==="who"){setMe(el.value);renderHead();syncWhoCard();if(el.value)toast("Logging as "+el.value);return}
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
   if(el.id==="fState"){S.fState=el.value;S.fQuick="";render(true);return}
