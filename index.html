@@ -557,6 +557,8 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 @media (min-width:641px){.brand b{white-space:nowrap}}
 </style>
 <style>
+.tsum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.tsum .tsel{font-family:var(--f-mono);font-weight:700;font-size:15px;flex:1;min-width:0}
 /* linked cases */
 .links{display:grid;gap:6px}.lnk{display:flex;gap:6px;align-items:center}.lnkopen{flex:1;min-width:0;text-align:left;border:1px solid var(--line);border-left:5px solid var(--c);background:var(--surface);border-radius:8px;padding:9px 12px;font-weight:600;overflow-wrap:anywhere}.lnkopen:hover{border-color:var(--accent)}
 </style>
@@ -1173,15 +1175,18 @@ function fieldInput(k,val,id,t){
   if(f.opts)return `<div class="f"><label for="${id}">${esc(f.label)}</label><select id="${id}" data-ff="${k}"><option value=""></option>${f.opts.map(o=>`<option${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select></div>`;
   return `<div class="f"><label for="${id}">${esc(f.label)}</label><input id="${id}" data-ff="${k}" value="${esc(val||"")}"${f.list?` list="dl-${k}"`:""}${f.num?' inputmode="decimal" class="mono"':""} placeholder="${esc(f.ph||"")}" autocomplete="off"></div>`;
 }
+/* once teeth are picked the chart folds up to just the numbers; Change opens it again, Done folds it */
+const teethKey=ctx=>ctx==="edit"?"edit:"+S.panel:"new";
 function toothPicker(sel,ctx){
   const on=new Set((sel||[]).map(Number));
+  if(on.size&&S.teethOpen!==teethKey(ctx))return `<div class="tsum"><span class="tsel">${esc(teethLabel(sel))}</span><button type="button" class="btn sm" data-teethopen="${esc(ctx)}">Change</button></div>`;
   const b=n=>`<button type="button" class="tooth${on.has(n)?" on":""}" data-tooth="${n}" aria-pressed="${on.has(n)}" aria-label="Tooth ${n}">${n}</button>`;
   return `<div class="tchart" role="group" aria-label="Tooth numbers, universal numbering">
     <div class="tlab"><span>Upper · patient's right</span><span>left</span></div>
     <div class="trow up">${Array.from({length:16},(_,i)=>b(i+1)).join("")}</div>
     <div class="trow lo">${Array.from({length:16},(_,i)=>b(32-i)).join("")}</div>
     <div class="tlab"><span>Lower · patient's right</span><span>left</span></div></div>
-  <div class="tquick"><button type="button" class="btn sm" data-arch="U">Whole upper</button><button type="button" class="btn sm" data-arch="L">Whole lower</button><button type="button" class="btn sm" data-arch="C">Clear</button><span class="sel">${esc(teethLabel(sel))||'<span class="hint">No teeth picked</span>'}</span></div>`;
+  <div class="tquick"><button type="button" class="btn sm" data-arch="U">Whole upper</button><button type="button" class="btn sm" data-arch="L">Whole lower</button><button type="button" class="btn sm" data-arch="C">Clear</button><span class="sel">${esc(teethLabel(sel))||'<span class="hint">No teeth picked</span>'}</span>${on.size?'<button type="button" class="btn sm pri" data-teethdone>Done</button>':""}</div>`;
 }
 function typeOptions(cur,ask){
   return (ask&&!cur?'<option value="" selected disabled>Choose case type…</option>':"")+GROUPS.map(g=>{const ts=TYPES().filter(t=>(t.group||"Other")===g&&(!t.off||t.id===cur));return ts.length?`<optgroup label="${esc(g)}">${ts.map(t=>`<option value="${esc(t.id)}"${t.id===cur?" selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`:""}).join("");
@@ -1984,8 +1989,8 @@ document.addEventListener("click",async ev=>{
     if(ds.q==="all")goHome();else{S.fQuick=ds.q;S.fState="open"}
     S.tab="cases";S.panel=null;render(true);if(away)window.scrollTo(0,0);return}
   if(ds.clearf!==undefined){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick="";render(true);return}
-  if(ds.open){S.panel=ds.open;S.arm=null;S.editSteps=false;render();return}
-  if(ds.close!==undefined){S.panel=null;render();return}
+  if(ds.open){S.panel=ds.open;S.arm=null;S.teethOpen=null;S.editSteps=false;render();return}
+  if(ds.close!==undefined){S.panel=null;S.teethOpen=null;render();return}
   if(ds.unlink){const c=caseOf(S.panel),o=caseOf(ds.unlink);if(c){if(o)setLink(c,o,false);else patchCase(c,{links:(c.links||[]).filter(id=>id!==ds.unlink)})}return}
   if(ds.pwshow){S.pwShow=S.pwShow===ds.pwshow?null:ds.pwshow;render(true);return}
   if(ds.copy!==undefined){try{await navigator.clipboard.writeText(ds.copy);toast("Copied")}catch(e){toast("Copy isn't available here. Select the text instead.")}return}
@@ -1993,8 +1998,10 @@ document.addEventListener("click",async ev=>{
   /* new-case pickers */
   if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};fillFieldDefs(S.draft);render(true);return}
   if(ds.pickLab){S.draft.lab=ds.pickLab;const l=labOf(ds.pickLab);if(l&&!S.draft.sentAt)S.draft.sentAt=todayISO();autoDue(S.draft);render(true);return}
+  if(ds.teethopen){S.teethOpen=teethKey(ds.teethopen);render(true);return}
+  if(ds.teethdone!==undefined){S.teethOpen=null;render(true);return}
   if(ds.tooth||ds.arch){
-    const inPanel=b.closest("[data-form=edit]");
+    const inPanel=b.closest("[data-form=edit]");S.teethOpen=teethKey(inPanel?"edit":"new");
     if(inPanel){const c=caseOf(S.panel);if(c)patchCase(c,{teeth:toggleTeeth(c.teeth,+ds.tooth,ds.arch)})}
     else if(S.draft){S.draft.teeth=toggleTeeth(S.draft.teeth,+ds.tooth,ds.arch);render(true)}
     return;
