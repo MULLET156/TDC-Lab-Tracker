@@ -1272,7 +1272,7 @@ function filtered(){
     if(S.fQuick==="ready"&&!isReady(c))return false;
     if(S.fQuick==="inhouse"&&!(isOpen(c)&&isIn(c)))return false;
     if(S.fQuick==="out"&&!(isOpen(c)&&!isIn(c)))return false;
-    if(q){const hay=[c.remake?"remake "+(c.remakeReason||""):"",c.patient,c.chart,c.dob,fmtDOB(c.dob),c.createdBy,...(c.steps||[]).map(s=>s.by),typeName(c),labName(c.lab),teethLabel(c.teeth),(c.teeth||[]).map(n=>"#"+n).join(" "),c.doctor,c.notes,c.labNo,c.tracking,...(c.comms||[]).map(x=>x.text),...Object.values(c.fields||{})].join(" ").toLowerCase();if(!hay.includes(q))return false}
+    if(q){const hay=[c.remake?"remake "+(c.remakeReason||""):"",c.patient,c.chart,c.patNum,c.dob,fmtDOB(c.dob),c.createdBy,...(c.steps||[]).map(s=>s.by),typeName(c),labName(c.lab),teethLabel(c.teeth),(c.teeth||[]).map(n=>"#"+n).join(" "),c.doctor,c.notes,c.labNo,c.tracking,...(c.comms||[]).map(x=>x.text),...Object.values(c.fields||{})].join(" ").toLowerCase();if(!hay.includes(q))return false}
     return true;
   });
 }
@@ -1289,7 +1289,7 @@ function caseRow(c){
   return `<button class="crow" data-open="${esc(c.id)}" data-s="${st}" data-k="${k}">
     <span class="strip"></span>
     <span class="cmain">
-      <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:""}</span>
+      <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:c.patNum?`<small>Pt #${esc(c.patNum)}</small>`:""}</span>
       <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${flags}${extras?`<span>${extras}</span>`:""}</span>
       <span class="next">${isOpen(c)?(nx?`Next: <b>${esc(nx.l)}</b>`:(c.state==="hold"&&allDone(c)?'<span class="pill st">On hold</span> <span class="pill st">Ready to deliver</span>':`<span class="pill st">${STAGE[st]}</span>`)):`<span class="pill st">${STAGE[st]}</span>`}${c.state==="hold"&&nx?' <span class="pill st">On hold</span>':""}${lastBy}</span>
     </span>
@@ -1525,7 +1525,7 @@ function caseLabelHtml(c,L){
   const when=[c.due?(lab?"Back ":"Ready ")+(small?new Date(c.due+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):fmtD(c.due)):"",c.seat&&!small?"Seat "+fmtD(c.seat):""].filter(Boolean).join(" · ");
   const flags=[c.rush?"RUSH":"",c.remake?"REMAKE":""].filter(Boolean).map(x=>`<span class="cr">${x}</span>`).join("");
   return `<div class="clbl" style="width:${L.w}in;height:${L.h}in;padding:.06in .08in .06in .12in">
-    <div class="ct"><div class="cn" style="font-size:${pt*1.25}pt">${flags}${esc(c.patient||"No name")}${c.chart?` <span style="font-weight:400;font-size:${pt}pt">#${esc(c.chart)}</span>`:""}</div>
+    <div class="ct"><div class="cn" style="font-size:${pt*1.25}pt">${flags}${esc(c.patient||"No name")}${c.chart||c.patNum?` <span style="font-weight:400;font-size:${pt}pt">${c.chart?"#"+esc(c.chart):"Pt #"+esc(c.patNum)}</span>`:""}</div>
     <div class="cl" style="font-size:${pt}pt">${esc(typeName(c))}</div>
     ${det?`<div class="cs" style="font-size:${pt*.9}pt">${esc(det)}</div>`:""}
     ${when?`<div class="cs" style="font-size:${pt*.9}pt">${esc(when)}</div>`:""}
@@ -1577,7 +1577,7 @@ function renderPanel(){
   const prev=root.querySelector(".panel"),keep=prev?.scrollTop||0;
   /* slide in only when the sheet opens, not on every redraw */
   root.innerHTML=`<div class="scrim" data-scrim><div class="panel${prev?"":" enter"}" role="dialog" aria-modal="true" aria-labelledby="ph-t">
-    <div class="ph"><div><h2 id="ph-t">${esc(c.patient||"Patient")}${c.chart?` <span class="pc">#${esc(c.chart)}</span>`:""}${c.dob?` <span class="pc">DOB ${esc(fmtDOB(c.dob))}</span>`:""}</h2>
+    <div class="ph"><div><h2 id="ph-t">${esc(c.patient||"Patient")}${c.chart?` <span class="pc">#${esc(c.chart)}</span>`:""}${c.patNum?` <span class="pc" title="Open Dental patient number">Pt #${esc(c.patNum)}</span>`:""}${c.dob?` <span class="pc">DOB ${esc(fmtDOB(c.dob))}</span>`:""}</h2>
       <div class="sub" data-s="${st}"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span><span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
       <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
       <button class="btn sm" data-close aria-label="Close">Close</button></div>

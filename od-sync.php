@@ -20,7 +20,8 @@
  *                                 gateway reports what it wrote to Open Dental.
  *
  * Patient data received: first initial + last name (or initials) only. No date of
- * birth, chart number or Open Dental record numbers; cases are matched by an
+ * birth or chart number. Open Dental's patient number (PatNum) is kept on purpose so staff
+ * can find the patient; other Open Dental record numbers are not. Cases are matched by an
  * opaque key ("od-" + 24 hex characters).
  */
 
@@ -139,6 +140,12 @@ function all_docs(PDO $pdo, string $col, string $prefix = ''): array {
 }
 
 /* ---------- helpers ---------- */
+/* Open Dental's patient number (PatNum): digits only, or '' when the gateway doesn't send it. */
+function patnum_in($v): string {
+    if (is_int($v) && $v > 0 && $v < 1000000000000) return (string)$v;
+    if (is_string($v) && preg_match('/^[1-9][0-9]{0,11}$/', $v)) return $v;
+    return '';
+}
 function str_in($v, int $max): string { return is_string($v) ? mb_substr(trim(preg_replace('/\s+/', ' ', $v)), 0, $max) : ''; }
 function date_in($v): string { return (is_string($v) && preg_match(DATE_RE, $v)) ? $v : ''; }
 function now_ms(): int { return (int)floor(microtime(true) * 1000); }
@@ -199,12 +206,13 @@ try {
                 'seat'    => date_in($in['seat'] ?? ''),
                 'received'=> date_in($in['received'] ?? ''),
                 'checked' => date_in($in['checked'] ?? ''),
+                'patnum'  => patnum_in($in['patnum'] ?? null),
             ];
             $c = $existing[$key] ?? null;
             if ($c === null) {
                 $now = now_ms();
                 $c = [
-                    'patient' => $od['patient'], 'chart' => '', 'dob' => '', 'type' => '',
+                    'patient' => $od['patient'], 'chart' => '', 'patNum' => $od['patnum'], 'dob' => '', 'type' => '',
                     'lab' => lab_for($pdo, $labs, $od['lab'], $od['labIn'], $notes),
                     'teeth' => [], 'fields' => new stdClass(), 'due' => $od['due'], 'seat' => $od['seat'],
                     'doctor' => $od['doctor'], 'rush' => false, 'remake' => false, 'remakeReason' => '', 'notes' => '',
@@ -241,7 +249,10 @@ try {
                 $c['od']['readyReported'] = now_ms();
                 $changed[] = 'Marked checked in Open Dental';
             }
-            if (!$changed && ($last['received'] ?? '') === $od['received'] && ($last['labIn'] ?? null) === $od['labIn']) continue;
+            // The patient number follows Open Dental quietly (no log line); a gateway that doesn't send it leaves it alone.
+            $pnChanged = $od['patnum'] !== '' && ($last['patnum'] ?? '') !== $od['patnum'];
+            if ($pnChanged) $c['patNum'] = $od['patnum'];
+            if (!$changed && !$pnChanged && ($last['received'] ?? '') === $od['received'] && ($last['labIn'] ?? null) === $od['labIn']) continue;
             $c['od']['last'] = $od;
             $c['od']['synced'] = now_ms();
             if ($changed) {
