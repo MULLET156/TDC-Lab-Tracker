@@ -721,6 +721,8 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
   .prog{width:62px;height:5px}
   .panel .actions .btn{flex:1 1 auto}
   .panel .actions.pacts .btn.pri,.pacts .btn.pri{flex:2 1 auto}
+/* status buttons sit near the top of the case, so they no longer stick to the bottom on phones */
+.pacts.top{position:static;margin:0;padding:0;border:0;box-shadow:none;background:none}
 }
 </style>
 <style>
@@ -1584,6 +1586,10 @@ function renderPanel(){
       <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
       <button class="btn sm" data-close aria-label="Close">Close</button></div>
     ${seatBar(c)}
+    <div class="actions pacts top">
+      ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
+      ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
+    </div>
     <div class="card">
       <div class="stepshead"><h3>Steps</h3><button class="btn sm" data-editsteps>${S.editSteps?"Done editing":"Edit steps"}</button></div>
       <div class="bigprog" data-s="${st}"><span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d} of ${steps.length} done</span></div>
@@ -1591,10 +1597,6 @@ function renderPanel(){
         ? `<div class="stp edit">${grip(i)}<span><input type="text" id="cst-${i}" data-cstep="${i}" value="${esc(s.l)}" aria-label="Step ${i+1}" autocomplete="off">${s.done?`<span class="by">✓ <span class="init">${esc(s.by||"?")}</span> ${esc(fmtDT(s.at))}</span>`:""}</span><span class="ebtns"><button class="ebtn rm${S.arm==="step"+c.id+i?" armed":""}" data-cact="rm" data-i="${i}" aria-label="Remove step">${S.arm==="step"+c.id+i?"Remove?":"×"}</button></span></div>`
         : `<div class="stp${s.done?" done":""}${i===ni&&isOpen(c)?" nextup":""}"><input type="checkbox" id="stp-${i}" data-step="${i}"${s.done?" checked":""}><label class="l" for="stp-${i}">${esc(s.l)}${s.done?`<span class="by"><span class="init">${esc(s.by||"?")}</span> ${esc(fmtDT(s.at))}</span>`:""}</label><span></span></div>`).join("")||'<p class="hint">No steps on this case yet.</p>'}</div>
       <form class="addstep" data-addstep><input id="addstep-in" placeholder="Add a check for this case (e.g. Shade photo sent)" autocomplete="off" aria-label="New step"><button class="btn sm" type="submit">Add</button></form>
-    </div>
-    <div class="actions pacts">
-      ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
-      ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
     </div>
     <div class="actions"><button class="btn" type="button" data-caselabel>Print label</button>${S.dl?'<button class="btn" data-saveslip title="Saves a PDF you can open and print">Lab slip (PDF)</button>':""}<button class="btn" data-samepatient>+ New case for this patient</button></div>
     ${lab?`<div class="card contact"><h3>${esc(lab.name)}</h3>
