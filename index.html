@@ -556,6 +556,12 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 .pagehead h2{font-size:26px}
 @media (min-width:641px){.brand b{white-space:nowrap}}
 </style>
+<style>
+.tsum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.tsum .tsel{font-family:var(--f-mono);font-weight:700;font-size:15px;flex:1;min-width:0}
+/* linked cases */
+.links{display:grid;gap:6px}.lnk{display:flex;gap:6px;align-items:center}.lnkopen{flex:1;min-width:0;text-align:left;border:1px solid var(--line);border-left:5px solid var(--c);background:var(--surface);border-radius:8px;padding:9px 12px;font-weight:600;overflow-wrap:anywhere}.lnkopen:hover{border-color:var(--accent)}
+</style>
 <input type="file" id="filePick" tabindex="-1" aria-hidden="true" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
 <style>
 /* calm palette: red, amber and green only flag what needs attention; olive is for actions; everything else is neutral */
@@ -721,6 +727,8 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
   .prog{width:62px;height:5px}
   .panel .actions .btn{flex:1 1 auto}
   .panel .actions.pacts .btn.pri,.pacts .btn.pri{flex:2 1 auto}
+/* status buttons sit near the top of the case, so they no longer stick to the bottom on phones */
+.pacts.top{position:static;margin:0;padding:0;border:0;box-shadow:none;background:none}
 }
 </style>
 <style>
@@ -936,7 +944,7 @@ const FIELDS={
   shade:{label:"Shade",list:SHADES,ph:"e.g. A2"},
   material:{label:"Material",list:["e.max CAD","Zirconia","Celtra Duo","Empress CAD","Telio CAD (PMMA)","SprintRay Ceramic Crown","SprintRay C&B","NightGuard Flex","NightGuard Firm","Die & Model","Surgical guide resin","Denture base","Denture teeth","Flexible base"]},
   arch:{label:"Arch",opts:["Upper","Lower","Both"]},
-  implantSystem:{label:"Implant system",list:["Nobel Biocare","Straumann BLT","Straumann TLX","Neodent","Zimmer Biomet","BioHorizons","Hiossen","MIS","Megagen","Dentium","Implant Direct"]},
+  implantSystem:{label:"Implant system",list:["Blue Sky Bio","Nobel Biocare","Straumann BLT","Straumann TLX","Neodent","Zimmer Biomet","BioHorizons","Hiossen","MIS","Megagen","Dentium","Implant Direct"]},
   implantDia:{label:"Implant diameter (mm)",num:true},
   implantLen:{label:"Implant length (mm)",num:true},
   tibase:{label:"Ti-base size",ph:"e.g. NP 3.5 · GH 1.0 · post 4.0"},
@@ -965,11 +973,11 @@ const DEFAULT_TYPES=[
 ];
 /* material categories: each case type only offers the categories it uses, and fills in its default material */
 const DEFAULT_MATCATS=[
-  {id:"ceramic",name:"Ceramic (milled)",items:["e.max CAD","Zirconia","Celtra Duo","Empress CAD"]},
-  {id:"print",name:"3D printing resin",items:["SprintRay Ceramic Crown","SprintRay C&B","NightGuard Flex","NightGuard Firm","Die & Model","Surgical guide resin","Denture base","Denture teeth","Flexible base"]},
+  {id:"ceramic",name:"CEREC blocks",items:["IPS e.max CAD HT","Ivoclar Tetric CAD MT","CEREC MTL Zirconia Mono","CEREC MTL Zirconia Medi","Cercon 4D Mono","Cercon 4D Medi","Cercon 4D Abutment","Katana Zirconia ONE Crown","Katana Zirconia ONE Bridge","Katana Zirconia ONE Speed"]},
+  {id:"print",name:"3D printing resin",items:["SprintRay Apex Teeth","SprintRay Apex Base – Original Pink","SprintRay Apex Flex Partial Base","SprintRay NightGuard Flex 2","SprintRay Retainer","SprintRay Try-In 2","SprintRay Die and Model 2 – Tan","SprintRay Study Model White 2"]},
   {id:"pmma",name:"Milled temporary",items:["Telio CAD (PMMA)"]}];
-const DEF_MAT={crown:[["ceramic"],"e.max CAD"],bridge:[["ceramic"],"Zirconia"],temp:[["print","pmma"],"SprintRay C&B"],impcrown:[["ceramic"],"Zirconia"],abut:[["ceramic"],"Zirconia"],
-  healret:[["print"],"SprintRay C&B"],nightguard:[["print"],"NightGuard Flex"],retainer:[["print"],""],model:[["print"],"Die & Model"],mockup:[["print"],"SprintRay C&B"],other:[[],""]};
+const DEF_MAT={crown:[["ceramic"],"IPS e.max CAD HT"],bridge:[["ceramic"],"Katana Zirconia ONE Bridge"],temp:[["print","pmma"],""],impcrown:[["ceramic"],"CEREC MTL Zirconia Mono"],abut:[["ceramic"],"Cercon 4D Abutment"],
+  healret:[["print"],""],nightguard:[["print"],"SprintRay NightGuard Flex 2"],retainer:[["print"],"SprintRay Retainer"],model:[["print"],"SprintRay Die and Model 2 – Tan"],mockup:[["print"],"SprintRay Try-In 2"],other:[[],""]};
 const DEFAULT_OUT=["Rx & scans sent to lab","Shipped / uploaded","Lab confirmed received","Back in office","Checked & ready to deliver"];
 const STAGE={new:"Not started",inprog:"In progress",ready:"Ready to deliver",hold:"On hold",delivered:"Delivered",cancelled:"Cancelled"};
 
@@ -1167,15 +1175,18 @@ function fieldInput(k,val,id,t){
   if(f.opts)return `<div class="f"><label for="${id}">${esc(f.label)}</label><select id="${id}" data-ff="${k}"><option value=""></option>${f.opts.map(o=>`<option${o===val?" selected":""}>${esc(o)}</option>`).join("")}</select></div>`;
   return `<div class="f"><label for="${id}">${esc(f.label)}</label><input id="${id}" data-ff="${k}" value="${esc(val||"")}"${f.list?` list="dl-${k}"`:""}${f.num?' inputmode="decimal" class="mono"':""} placeholder="${esc(f.ph||"")}" autocomplete="off"></div>`;
 }
+/* once teeth are picked the chart folds up to just the numbers; Change opens it again, Done folds it */
+const teethKey=ctx=>ctx==="edit"?"edit:"+S.panel:"new";
 function toothPicker(sel,ctx){
   const on=new Set((sel||[]).map(Number));
+  if(on.size&&S.teethOpen!==teethKey(ctx))return `<div class="tsum"><span class="tsel">${esc(teethLabel(sel))}</span><button type="button" class="btn sm" data-teethopen="${esc(ctx)}">Change</button></div>`;
   const b=n=>`<button type="button" class="tooth${on.has(n)?" on":""}" data-tooth="${n}" aria-pressed="${on.has(n)}" aria-label="Tooth ${n}">${n}</button>`;
   return `<div class="tchart" role="group" aria-label="Tooth numbers, universal numbering">
     <div class="tlab"><span>Upper · patient's right</span><span>left</span></div>
     <div class="trow up">${Array.from({length:16},(_,i)=>b(i+1)).join("")}</div>
     <div class="trow lo">${Array.from({length:16},(_,i)=>b(32-i)).join("")}</div>
     <div class="tlab"><span>Lower · patient's right</span><span>left</span></div></div>
-  <div class="tquick"><button type="button" class="btn sm" data-arch="U">Whole upper</button><button type="button" class="btn sm" data-arch="L">Whole lower</button><button type="button" class="btn sm" data-arch="C">Clear</button><span class="sel">${esc(teethLabel(sel))||'<span class="hint">No teeth picked</span>'}</span></div>`;
+  <div class="tquick"><button type="button" class="btn sm" data-arch="U">Whole upper</button><button type="button" class="btn sm" data-arch="L">Whole lower</button><button type="button" class="btn sm" data-arch="C">Clear</button><span class="sel">${esc(teethLabel(sel))||'<span class="hint">No teeth picked</span>'}</span>${on.size?'<button type="button" class="btn sm pri" data-teethdone>Done</button>':""}</div>`;
 }
 function typeOptions(cur,ask){
   return (ask&&!cur?'<option value="" selected disabled>Choose case type…</option>':"")+GROUPS.map(g=>{const ts=TYPES().filter(t=>(t.group||"Other")===g&&(!t.off||t.id===cur));return ts.length?`<optgroup label="${esc(g)}">${ts.map(t=>`<option value="${esc(t.id)}"${t.id===cur?" selected":""}>${esc(t.name)}</option>`).join("")}</optgroup>`:""}).join("");
@@ -1290,7 +1301,7 @@ function caseRow(c){
     <span class="strip"></span>
     <span class="cmain">
       <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:c.patNum?`<small>Pt #${esc(c.patNum)}</small>`:""}</span>
-      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${flags}${extras?`<span>${extras}</span>`:""}</span>
+      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${linksOf(c).length?`<span class="pill" title="Linked cases">Linked ${linksOf(c).length}</span>`:""}${flags}${extras?`<span>${extras}</span>`:""}</span>
       <span class="next">${isOpen(c)?(nx?`Next: <b>${esc(nx.l)}</b>`:(c.state==="hold"&&allDone(c)?'<span class="pill st">On hold</span> <span class="pill st">Ready to deliver</span>':`<span class="pill st">${STAGE[st]}</span>`)):`<span class="pill st">${STAGE[st]}</span>`}${c.state==="hold"&&nx?' <span class="pill st">On hold</span>':""}${lastBy}</span>
     </span>
     <span class="cside">${S.fState==="all"&&c.createdAt>1e11?`<span class="created">Created ${esc(fmtD(iso(new Date(c.createdAt))))}</span>`:""}<span class="due${late?" late":""}">${esc(dueTxt)}</span>${seatTxt}<span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d}/${steps.length} steps</span></span>
@@ -1367,6 +1378,8 @@ function viewCases(){
 }
 
 /* ---------- new case ---------- */
+/* details with a default (Setup → Case options) are filled in when a new case's type is picked, if still empty */
+function fillFieldDefs(d){const t=typeOf(d.type);if(!t)return;const fl=F(),o={...(d.fields||{})};for(const k of t.fields){if(k==="material")continue;const f=fl[k];if(f&&typeof f.def==="string"&&f.def&&!o[k])o[k]=f.def}d.fields=o}
 function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",teeth:[],fields:{},due:"",seat:"",doctor:DEF_DOCTOR(),rush:false,remake:false,remakeReason:"",notes:"",labNo:"",tracking:"",fee:"",sentAt:"",dueAuto:true}}
 /* fill the ready-by / due-back date from the default, unless someone typed a date */
 function autoDue(d){if(!d.dueAuto&&d.due)return;const x=defDue(d);if(!x)return;let v=addDays(todayISO(),x.n);if(d.seat&&v>d.seat)v=d.seat;d.due=v;d.dueAuto=true}
@@ -1565,6 +1578,22 @@ addEventListener("hashchange",readHashCase);readHashCase();
 function photosCard(c){const ph=S.photos[c.id],busy=S.phBusy===c.id;
   return `<div class="card"><div class="stepshead"><h3>Photos${ph&&ph.length?` (${ph.length})`:""}</h3><div class="actions">${ph&&ph.length?`<button class="btn sm" type="button" data-phsend>${ic("send")}Send to lab</button>`:""}${S.canWrite?`<button class="btn sm" type="button" data-pick="photos"${busy?" disabled":""}>${ic("plus")}${busy?"Adding…":"Add photos"}</button>`:""}</div></div>
     ${ph==null?'<p class="hint">Loading photos…</p>':ph.length?`<div class="phgrid">${ph.map(p=>`<button type="button" data-photo="${esc(p.id)}" aria-label="Open photo"><img alt="" loading="lazy" src="${p.src}"></button>`).join("")}</div>`:'<p class="hint">No photos yet. Add shade photos, the prep, the fit or the lab slip.</p>'}</div>`}
+/* linked cases: two-way links between cases that belong together (e.g. a crown and its abutment, or upper and lower) */
+const linksOf=c=>(c.links||[]).map(caseOf).filter(Boolean);
+const caseLine=x=>[x.patient||"Patient",typeName(x),x.teeth&&x.teeth.length?teethLabel(x.teeth):"",STAGE[stage(x)]||""].filter(Boolean).join(" · ");
+function linksCard(c){
+  const ls=linksOf(c),have=new Set([c.id,...ls.map(x=>x.id)]);
+  const same=x=>(c.chart&&x.chart===c.chart)||(c.patient&&(x.patient||"").trim().toLowerCase()===c.patient.trim().toLowerCase());
+  const pool=S.cases.filter(x=>!have.has(x.id)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const mine=pool.filter(same),rest=pool.filter(x=>!same(x)&&isOpen(x)).slice(0,150);
+  const opt=x=>`<option value="${esc(x.id)}">${esc(caseLine(x))}</option>`;
+  return `<div class="card"><h3>Linked cases${ls.length?` (${ls.length})`:""}</h3>
+    ${ls.length?`<div class="links">${ls.map(x=>`<div class="lnk"><button class="lnkopen" data-open="${esc(x.id)}" data-s="${stage(x)}">${esc(caseLine(x))}</button><button class="rmx" data-unlink="${esc(x.id)}" aria-label="Unlink">×</button></div>`).join("")}</div>`:'<p class="hint">Link cases that go together, like a crown and its custom abutment, or an upper and lower appliance.</p>'}
+    ${mine.length||rest.length?`<div class="f"><label for="linkadd">Link another case</label><select id="linkadd" data-linkadd><option value="">Pick a case…</option>${mine.length?`<optgroup label="Same patient">${mine.map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Other open cases">${rest.map(opt).join("")}</optgroup>`:""}</select></div>`:""}
+  </div>`}
+function setLink(a,b,on){
+  const add=(x,y)=>{const l=(x.links||[]).filter(id=>id!==y.id);if(on)l.push(y.id);return patchCase(x,{links:l},(on?"Linked to ":"Unlinked from ")+caseLine(y))};
+  return Promise.all([add(a,b),add(b,a)])}
 function renderPanel(){
   if(S.panel)loadPhotos(S.panel);
   const root=$("#panelRoot");
@@ -1582,6 +1611,10 @@ function renderPanel(){
       <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
       <button class="btn sm" data-close aria-label="Close">Close</button></div>
     ${seatBar(c)}
+    <div class="actions pacts top">
+      ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
+      ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
+    </div>
     <div class="card">
       <div class="stepshead"><h3>Steps</h3><button class="btn sm" data-editsteps>${S.editSteps?"Done editing":"Edit steps"}</button></div>
       <div class="bigprog" data-s="${st}"><span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d} of ${steps.length} done</span></div>
@@ -1590,12 +1623,8 @@ function renderPanel(){
         : `<div class="stp${s.done?" done":""}${i===ni&&isOpen(c)?" nextup":""}"><input type="checkbox" id="stp-${i}" data-step="${i}"${s.done?" checked":""}><label class="l" for="stp-${i}">${esc(s.l)}${s.done?`<span class="by"><span class="init">${esc(s.by||"?")}</span> ${esc(fmtDT(s.at))}</span>`:""}</label><span></span></div>`).join("")||'<p class="hint">No steps on this case yet.</p>'}</div>
       <form class="addstep" data-addstep><input id="addstep-in" placeholder="Add a check for this case (e.g. Shade photo sent)" autocomplete="off" aria-label="New step"><button class="btn sm" type="submit">Add</button></form>
     </div>
-    ${photosCard(c)}
-    <div class="actions pacts">
-      ${isOpen(c)?`<button class="btn pri" data-deliver>Mark delivered</button><button class="btn" data-hold>${c.state==="hold"?"Take off hold":"Put on hold"}</button>`:`<button class="btn" data-reopen>Reopen case</button>`}
-      ${isOpen(c)?`<button class="btn" data-cancel>${S.arm==="cancel"+c.id?"Tap again to cancel case":"Cancel case"}</button>`:""}
-    </div>
     <div class="actions"><button class="btn" type="button" data-caselabel>Print label</button>${S.dl?'<button class="btn" data-saveslip title="Saves a PDF you can open and print">Lab slip (PDF)</button>':""}<button class="btn" data-samepatient>+ New case for this patient</button></div>
+    ${linksCard(c)}
     ${lab?`<div class="card contact"><h3>${esc(lab.name)}</h3>
       ${lab.contact?`<div>Contact: ${esc(lab.contact)}</div>`:""}
       ${c.sentAt?`<div>Sent ${esc(fmtD(c.sentAt))}${c.tracking?` · Tracking <span class="v">${esc(c.tracking)}</span>`:""}</div>`:""}
@@ -1608,6 +1637,7 @@ function renderPanel(){
       <form class="addstep comm-add" data-addcomm><textarea id="addcomm-in" rows="2" placeholder="e.g. Called lab, shade changed to A3. Talked to Sarah." aria-label="New lab note"></textarea><button class="btn sm" type="submit">Add note</button></form></div>`:""}
     <div class="card" data-form="edit"><h3>Case details</h3>${caseForm(c,"edit")}<p class="hint">Changes save when you leave a field.${c.updatedBy?` Last change by ${esc(c.updatedBy)} · ${esc(fmtDT(c.updatedAt))}.`:""}</p></div>
     <details class="card"><summary>History (${(c.log||[]).length})</summary><div class="log">${(c.log||[]).slice().reverse().map(e=>`<div><time>${esc(fmtDT(e.at))}</time><span class="init">${esc(e.by)}</span><span>${esc(e.what)}</span></div>`).join("")}</div></details>
+    ${photosCard(c)}
     <div class="actions"><button class="btn danger${S.arm==="del"+c.id?" armed":""}" data-delcase>${S.arm==="del"+c.id?"Tap again to delete for good":"Delete case"}</button></div>
   </div></div>`;
   const pn=root.querySelector(".panel");if(pn)pn.scrollTop=keep;
@@ -1743,11 +1773,13 @@ function viewMaterials(){
   const cats=MATCATS(),fl=F(),usedBy=k=>TYPES().filter(t=>!t.off&&t.fields.includes(k)).map(t=>t.name);
   const dets=Object.entries(fl).filter(([k])=>k!=="shade"&&k!=="material").map(([k0,f])=>{const k=esc(k0),kd=kindOf(f),u=usedBy(k0);
     const n=kd==="select"?pl(f.opts.length,"choice"):f.list?pl(f.list.length,"suggestion"):"";
-    return optCard("f:"+k0,f.label,(kd==="select"?"Dropdown":f.list?"Text with suggestions":KINDS[kd])+(n?" · "+n:""),`
+    const dv=typeof f.def==="string"?f.def:"",canDef=kd==="select"||kd==="text";
+    return optCard("f:"+k0,f.label,(kd==="select"?"Dropdown":f.list?"Text with suggestions":KINDS[kd])+(n?" · "+n:"")+(dv?" · default "+dv:""),`
       <div class="fields">
         <div class="f full"><label for="of-${k}">Name</label><input id="of-${k}" data-olabel="${k}" value="${esc(f.label)}" autocomplete="off"></div>
         ${kd==="select"?`<div class="f full"><label for="oo-${k}">Dropdown choices (separate with commas)</label><textarea id="oo-${k}" data-oopts="${k}" rows="2">${esc(f.opts.join(", "))}</textarea></div>`:""}
         ${f.list?`<div class="f full"><label for="ol-${k}">Suggestions as you type (separate with commas)</label><textarea id="ol-${k}" data-olist="${k}" rows="2">${esc(f.list.join(", "))}</textarea></div>`:""}
+        ${canDef?`<div class="f"><label for="odf-${k}">Default on new cases</label>${kd==="select"?`<select id="odf-${k}" data-odef="${k}"><option value="">None</option>${[...new Set([...f.opts,dv].filter(Boolean))].map(o=>`<option${o===dv?" selected":""}>${esc(o)}</option>`).join("")}</select>`:`<input id="odf-${k}" data-odef="${k}" value="${esc(dv)}"${f.list?` list="dl-${k}"`:""} placeholder="None" autocomplete="off">`}</div>`:""}
       </div>
       <p class="hint">${u.length?"Asked on: "+esc(u.join(", "))+".":"Not used by any case type that's turned on."} Add or remove this detail on a case type in its Edit card under Case types & checklists.</p>`)}).join("");
   return `<div class="sechead" id="mats"><h2>Case options</h2><span class="hint">Every choice offered when filling in a case</span></div>
@@ -1957,16 +1989,19 @@ document.addEventListener("click",async ev=>{
     if(ds.q==="all")goHome();else{S.fQuick=ds.q;S.fState="open"}
     S.tab="cases";S.panel=null;render(true);if(away)window.scrollTo(0,0);return}
   if(ds.clearf!==undefined){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick="";render(true);return}
-  if(ds.open){S.panel=ds.open;S.arm=null;S.editSteps=false;render();return}
-  if(ds.close!==undefined){S.panel=null;render();return}
+  if(ds.open){S.panel=ds.open;S.arm=null;S.teethOpen=null;S.editSteps=false;render();return}
+  if(ds.close!==undefined){S.panel=null;S.teethOpen=null;render();return}
+  if(ds.unlink){const c=caseOf(S.panel),o=caseOf(ds.unlink);if(c){if(o)setLink(c,o,false);else patchCase(c,{links:(c.links||[]).filter(id=>id!==ds.unlink)})}return}
   if(ds.pwshow){S.pwShow=S.pwShow===ds.pwshow?null:ds.pwshow;render(true);return}
   if(ds.copy!==undefined){try{await navigator.clipboard.writeText(ds.copy);toast("Copied")}catch(e){toast("Copy isn't available here. Select the text instead.")}return}
   if(ds.resetdraft!==undefined){S.draft=freshDraft();render(true);return}
   /* new-case pickers */
-  if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};render(true);return}
+  if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};fillFieldDefs(S.draft);render(true);return}
   if(ds.pickLab){S.draft.lab=ds.pickLab;const l=labOf(ds.pickLab);if(l&&!S.draft.sentAt)S.draft.sentAt=todayISO();autoDue(S.draft);render(true);return}
+  if(ds.teethopen){S.teethOpen=teethKey(ds.teethopen);render(true);return}
+  if(ds.teethdone!==undefined){S.teethOpen=null;render(true);return}
   if(ds.tooth||ds.arch){
-    const inPanel=b.closest("[data-form=edit]");
+    const inPanel=b.closest("[data-form=edit]");S.teethOpen=teethKey(inPanel?"edit":"new");
     if(inPanel){const c=caseOf(S.panel);if(c)patchCase(c,{teeth:toggleTeeth(c.teeth,+ds.tooth,ds.arch)})}
     else if(S.draft){S.draft.teeth=toggleTeeth(S.draft.teeth,+ds.tooth,ds.arch);render(true)}
     return;
@@ -2055,6 +2090,7 @@ document.addEventListener("input",ev=>{
 });
 document.addEventListener("change",async ev=>{
   const el=ev.target,ds=el.dataset;
+  if(ds.linkadd!==undefined){const c=caseOf(S.panel),o=caseOf(el.value);if(c&&o){setLink(c,o,true);toast("Linked to "+(o.patient||"case")+".")}return}
   if(el.id==="who"){setMe(el.value);renderHead();syncWhoCard();if(el.value)toast("Logging as "+el.value);return}
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
@@ -2113,6 +2149,10 @@ document.addEventListener("change",async ev=>{
     if(ds.oopts){if(!arr.length){el.value=cur.opts.join(", ");toast("A dropdown needs at least one choice.");return}saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),opts:arr}});return}
     saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),list:arr}});return}
   if(el.id==="odefdoc"){const old=DEF_DOCTOR();saveLists({...listsNow(),defaultDoctor:el.value});if(S.draft&&(!S.draft.doctor||S.draft.doctor===old))S.draft.doctor=el.value;toast(el.value?"New cases start with "+el.value+".":"No default doctor.");return}
+  if(ds.odef){const k=ds.odef,cur=F()[k];if(!cur)return;const v=el.value.trim(),old=typeof cur.def==="string"?cur.def:"";if(v===old)return;
+    saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),def:v}});
+    if(S.draft&&S.draft.fields&&(S.draft.fields[k]||"")===old){const t=typeOf(S.draft.type);if(t&&t.fields.includes(k))S.draft.fields={...S.draft.fields,[k]:v}}
+    toast(v?"New cases start with "+v+".":"No default for "+cur.label+".");return}
   if(ds.olists){const arr=[...new Set(el.value.split(",").map(x=>x.trim()).filter(Boolean))];saveLists({...listsNow(),[ds.olists]:arr});toast("Saved");return}
   /* shades & materials */
   if(ds.mcname!==undefined){const id=el.closest("[data-mc]")?.dataset.mc,l=listsNow(),mc=l.matCats.find(x=>x.id===id),v=el.value.trim();if(!mc)return;if(!v){el.value=mc.name;return}if(v===mc.name)return;mc.name=v;saveLists(l);return}
