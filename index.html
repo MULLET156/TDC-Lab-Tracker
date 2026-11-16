@@ -1158,7 +1158,6 @@ function caseForm(c,ctx){
   return `<div class="fields">
     <div class="f"><label for="${p}-ch">Patient #</label><input id="${p}-ch" data-cf="chart" class="mono" value="${esc(c.chart)}" autocomplete="off" inputmode="numeric"></div>
     <div class="f"><label for="${p}-pt">Patient (first initial, last name)</label><input id="${p}-pt" data-cf="patient" value="${esc(c.patient)}" autocomplete="off" placeholder="e.g. J. Smith"></div>
-    <div class="f"><label for="${p}-dob">Date of birth (optional)</label><input id="${p}-dob" type="date" data-cf="dob" value="${esc(c.dob)}"></div>
     ${typeCtl}
     <div class="f full"><span class="lbl">Tooth number(s)</span>${toothPicker(c.teeth,ctx)}</div>
     ${t?t.fields.map(k=>fieldInput(k,fv[k],p+"-f-"+k,t)).join(""):""}
@@ -1374,7 +1373,7 @@ function seatBar(c){
 }
 /* the lab slip as a real PDF (US Letter), written directly so it needs nothing from outside the page */
 function slipRows(c){const t=typeOf(c.type),fv=c.fields||{},fl=F();
-  return [["Patient",(c.patient||"")+(c.chart?"   #"+c.chart:"")],["Date of birth",fmtDOB(c.dob)],["Case type",typeName(c)],["Teeth",teethLabel(c.teeth)],["Made by",labName(c.lab)],
+  return [["Patient",(c.patient||"")+(c.chart?"   #"+c.chart:"")],...(c.dob?[["Date of birth",fmtDOB(c.dob)]]:[]),["Case type",typeName(c)],["Teeth",teethLabel(c.teeth)],["Made by",labName(c.lab)],
     ...((t&&t.fields)||[]).filter(k=>fl[k]&&fv[k]).map(k=>[fl[k].label,fv[k]]),
     [!isIn(c)?"Due back":"Ready by",c.due?fmtD(c.due):""],["Delivery appointment",c.seat?fmtD(c.seat):""],["Doctor",c.doctor],["Lab's case #",c.labNo],["Tracking #",c.tracking],
     ["Rush",c.rush?"YES":""],["Remake",c.remake?"Yes"+(c.remakeReason?" ("+c.remakeReason+")":""):""],["Notes",c.notes]].filter(r=>r[1])}
