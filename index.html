@@ -788,6 +788,16 @@ header .tile>span span{font:inherit;letter-spacing:0;text-transform:none;color:i
 /* ===== shared page frame (TDC-Office-Plan/DESIGN.md): one 4px line under the header in the current page's colour, plain warm page, grey search boxes ===== */
 header{border-bottom:4px solid var(--pg,var(--accent))!important}
 .filters input,.filters select,#q{background:var(--sunk)!important}
+
+/* page banner (i) button (TDC-Office-Plan/DESIGN.md) */
+.pagehead .pht{display:flex;align-items:center;gap:8px;min-width:0;margin-right:auto}
+.pagehead .pht h2{margin-right:0;min-width:0}
+.phinfo{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;padding:0;border:1.5px solid var(--pg);border-radius:50%;background:transparent;color:var(--pg);font:italic 700 13px/1 Georgia,"Times New Roman",serif;cursor:pointer;opacity:.8;position:relative}
+.phinfo::after{content:"";position:absolute;inset:-11px}
+.phinfo:hover,.phinfo[aria-expanded="true"]{opacity:1;background:var(--pg);color:var(--surface)}
+.pagehead .phsub{flex-basis:100%;margin:0;font-size:13px;color:var(--fg);opacity:.85}
+.pagehead .phsub[hidden]{display:none}
+@media (max-width:640px){.phinfo{width:20px;height:20px;font-size:12px}.pagehead .phsub{font-size:12.5px}}
 </style>
 <header>
   <div class="wrap">
@@ -1365,8 +1375,22 @@ const isHome=()=>!S.q&&S.fWhere==="all"&&!S.fType&&S.fState==="open"&&!S.fQuick;
 function goHome(){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick=""}
 const fCount=()=>(S.fWhere!=="all")+(!!S.fType)+(S.fState!=="open");
 function pageTitle(){return {active:"Active cases",out:"Sent out",overdue:"Overdue",ready:"Ready to deliver",hold:"On hold","911":"911 cases",today:"Due today",inhouse:"In-house cases"}[S.fQuick]||{open:"Open cases",delivered:"Delivered cases",cancelled:"Cancelled cases",all:"All cases"}[S.fState]||"Cases"}
+/* page banner (i) button: the page's help line stays hidden until tapped (same as Maintenance Tracker and Supply Room) */
+const PH_HELP={
+  open:"Every case that isn't delivered or cancelled, soonest first. Tap a case to check off steps, change dates or mark it delivered. The tiles above filter the list.",
+  delivered:"Cases already delivered to the patient.",cancelled:"Cases that were cancelled.",all:"Every case, open or closed.",
+  active:"Cases being made right now, in the office or at a lab.",out:"Cases sent to an outside lab that haven't come back yet.",
+  overdue:"Cases past their ready-by date, and 911 cases (not finished with the patient in within 2 days). Finish these first or set a new date.",
+  "911":"Not finished, and the patient is in within 2 days.",ready:"Finished and checked, waiting for the patient's delivery appointment.",
+  hold:"Paused cases, waiting on something such as a delivery date, a scan or a decision.",today:"Cases due today.",inhouse:"Cases made here in the office.",
+  new:"Fill in the patient, case type and dates. The steps for that case type are added for you, and the ready-by date is worked out from the delivery date.",
+  setup:"Team initials, labs, case types, materials and other settings for this office."};
+function phParts(key){const text=PH_HELP[key];if(S.phKey!==key){S.phKey=key;S.phOpen=false}if(!text)return {btn:"",sub:""};
+  return {btn:`<button type="button" class="phinfo" data-phinfo aria-expanded="${!!S.phOpen}" aria-controls="phSub" aria-label="About this page" title="About this page">i</button>`,
+          sub:`<p class="phsub" id="phSub"${S.phOpen?"":" hidden"}>${esc(text)}</p>`}}
 function viewCases(){
-  return `<div class="pagehead"><h2>${ic(TILE_IC[S.fQuick]||"list")}${pageTitle()}</h2><span class="phn" id="phN"></span>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}</div>
+  const ph=phParts(S.fQuick||S.fState||"open");
+  return `<div class="pagehead"><div class="pht"><h2>${ic(TILE_IC[S.fQuick]||"list")}${pageTitle()}</h2>${ph.btn}</div><span class="phn" id="phN"></span>${S.fQuick?'<button class="qlink" data-clearf>Back to open cases</button>':""}${ph.sub}</div>
   ${S.canWrite?"":`<div class="notice warn"><b>View only</b><span class="hint">You can see cases but not change them. Ask the page owner for Contributor access.</span></div>`}
   ${!S.db&&S.live?`<div class="notice warn"><b>Saving isn't available here</b><span class="hint">Sign in with the office password to save and share cases.</span></div>`:""}
   <div class="filters${S.fOpen||fCount()?" open":""}">
@@ -1389,7 +1413,8 @@ function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",t
 function autoDue(d){if(!d.dueAuto&&d.due)return;const x=defDue(d);if(!x)return;let v=addDays(todayISO(),x.n);if(d.seat&&v>d.seat)v=d.seat;d.due=v;d.dueAuto=true}
 function viewNew(){
   if(!S.draft)S.draft=freshDraft();
-  return `<div class="pagehead"><h2>${ic("plus")}New lab case</h2><button class="qlink" data-resetdraft>Start over</button></div>
+  const ph=phParts("new");
+  return `<div class="pagehead"><div class="pht"><h2>${ic("plus")}New lab case</h2>${ph.btn}</div><button class="qlink" data-resetdraft>Start over</button>${ph.sub}</div>
   <form class="card" data-form="new" id="newform">${caseForm(S.draft,"new")}
     ${S.draft.type?`<div class="hint">${pl(buildSteps(S.draft.type,S.draft.lab).length,"step")} will be added: ${esc(buildSteps(S.draft.type,S.draft.lab).map(s=>s.l).join(" → "))}</div>`:""}
     <div class="actions"><button class="btn pri" type="submit" style="flex:1;min-height:48px;font-size:16px">Save case</button></div>
@@ -1727,7 +1752,8 @@ document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
-  return `<div class="pagehead"><h2>${ic("gear")}Setup</h2></div>
+  const ph=phParts("setup");
+  return `<div class="pagehead"><div class="pht"><h2>${ic("gear")}Setup</h2>${ph.btn}</div>${ph.sub}</div>
   <div class="sechead"><h2>Team</h2><span class="hint">Initials show on every checked step</span></div>
   <div class="card"><div class="chips">${S.team.map(i=>`<span class="chip">${esc(i)}<button data-rmteam="${esc(i)}" aria-label="Remove ${esc(i)}">×</button></span>`).join("")||'<span class="hint">No one added yet.</span>'}</div>
     <form class="addline" id="addteam"><div class="f"><label for="newinit">Add initials</label><input id="newinit" maxlength="4" style="width:110px;text-transform:uppercase" required autocomplete="off"></div><button class="btn pri" type="submit">Add</button></form>
@@ -1992,6 +2018,7 @@ document.addEventListener("click",async ev=>{
     /* tapping a tile that's already on keeps it on; All cases or the logo clears it */
     if(ds.q==="all")goHome();else{S.fQuick=ds.q;S.fState="open"}
     S.tab="cases";S.panel=null;render(true);if(away)window.scrollTo(0,0);return}
+  if(ds.phinfo!==undefined){S.phOpen=!S.phOpen;const p=$("#phSub");if(p)p.hidden=!S.phOpen;b.setAttribute("aria-expanded",String(!!S.phOpen));return}
   if(ds.clearf!==undefined){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick="";render(true);return}
   if(ds.open){S.panel=ds.open;S.arm=null;S.teethOpen=null;S.editSteps=false;render();return}
   if(ds.close!==undefined){S.panel=null;S.teethOpen=null;render();return}
