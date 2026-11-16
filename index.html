@@ -965,11 +965,11 @@ const DEFAULT_TYPES=[
 ];
 /* material categories: each case type only offers the categories it uses, and fills in its default material */
 const DEFAULT_MATCATS=[
-  {id:"ceramic",name:"Ceramic (milled)",items:["e.max CAD","Zirconia","Celtra Duo","Empress CAD"]},
-  {id:"print",name:"3D printing resin",items:["SprintRay Ceramic Crown","SprintRay C&B","NightGuard Flex","NightGuard Firm","Die & Model","Surgical guide resin","Denture base","Denture teeth","Flexible base"]},
+  {id:"ceramic",name:"CEREC blocks",items:["IPS e.max CAD HT","Ivoclar Tetric CAD MT","CEREC MTL Zirconia Mono","CEREC MTL Zirconia Medi","Cercon 4D Mono","Cercon 4D Medi","Cercon 4D Abutment","Katana Zirconia ONE Crown","Katana Zirconia ONE Bridge","Katana Zirconia ONE Speed"]},
+  {id:"print",name:"3D printing resin",items:["SprintRay Apex Teeth","SprintRay Apex Base – Original Pink","SprintRay Apex Flex Partial Base","SprintRay NightGuard Flex 2","SprintRay Retainer","SprintRay Try-In 2","SprintRay Die and Model 2 – Tan","SprintRay Study Model White 2"]},
   {id:"pmma",name:"Milled temporary",items:["Telio CAD (PMMA)"]}];
-const DEF_MAT={crown:[["ceramic"],"e.max CAD"],bridge:[["ceramic"],"Zirconia"],temp:[["print","pmma"],"SprintRay C&B"],impcrown:[["ceramic"],"Zirconia"],abut:[["ceramic"],"Zirconia"],
-  healret:[["print"],"SprintRay C&B"],nightguard:[["print"],"NightGuard Flex"],retainer:[["print"],""],model:[["print"],"Die & Model"],mockup:[["print"],"SprintRay C&B"],other:[[],""]};
+const DEF_MAT={crown:[["ceramic"],"IPS e.max CAD HT"],bridge:[["ceramic"],"Katana Zirconia ONE Bridge"],temp:[["print","pmma"],""],impcrown:[["ceramic"],"CEREC MTL Zirconia Mono"],abut:[["ceramic"],"Cercon 4D Abutment"],
+  healret:[["print"],""],nightguard:[["print"],"SprintRay NightGuard Flex 2"],retainer:[["print"],"SprintRay Retainer"],model:[["print"],"SprintRay Die and Model 2 – Tan"],mockup:[["print"],"SprintRay Try-In 2"],other:[[],""]};
 const DEFAULT_OUT=["Rx & scans sent to lab","Shipped / uploaded","Lab confirmed received","Back in office","Checked & ready to deliver"];
 const STAGE={new:"Not started",inprog:"In progress",ready:"Ready to deliver",hold:"On hold",delivered:"Delivered",cancelled:"Cancelled"};
 
