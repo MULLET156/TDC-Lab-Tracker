@@ -556,6 +556,10 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 .pagehead h2{font-size:26px}
 @media (min-width:641px){.brand b{white-space:nowrap}}
 </style>
+<style>
+/* linked cases */
+.links{display:grid;gap:6px}.lnk{display:flex;gap:6px;align-items:center}.lnkopen{flex:1;min-width:0;text-align:left;border:1px solid var(--line);border-left:5px solid var(--c);background:var(--surface);border-radius:8px;padding:9px 12px;font-weight:600;overflow-wrap:anywhere}.lnkopen:hover{border-color:var(--accent)}
+</style>
 <input type="file" id="filePick" tabindex="-1" aria-hidden="true" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
 <style>
 /* calm palette: red, amber and green only flag what needs attention; olive is for actions; everything else is neutral */
@@ -1292,7 +1296,7 @@ function caseRow(c){
     <span class="strip"></span>
     <span class="cmain">
       <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:c.patNum?`<small>Pt #${esc(c.patNum)}</small>`:""}</span>
-      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${flags}${extras?`<span>${extras}</span>`:""}</span>
+      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${linksOf(c).length?`<span class="pill" title="Linked cases">Linked ${linksOf(c).length}</span>`:""}${flags}${extras?`<span>${extras}</span>`:""}</span>
       <span class="next">${isOpen(c)?(nx?`Next: <b>${esc(nx.l)}</b>`:(c.state==="hold"&&allDone(c)?'<span class="pill st">On hold</span> <span class="pill st">Ready to deliver</span>':`<span class="pill st">${STAGE[st]}</span>`)):`<span class="pill st">${STAGE[st]}</span>`}${c.state==="hold"&&nx?' <span class="pill st">On hold</span>':""}${lastBy}</span>
     </span>
     <span class="cside">${S.fState==="all"&&c.createdAt>1e11?`<span class="created">Created ${esc(fmtD(iso(new Date(c.createdAt))))}</span>`:""}<span class="due${late?" late":""}">${esc(dueTxt)}</span>${seatTxt}<span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d}/${steps.length} steps</span></span>
@@ -1569,6 +1573,22 @@ addEventListener("hashchange",readHashCase);readHashCase();
 function photosCard(c){const ph=S.photos[c.id],busy=S.phBusy===c.id;
   return `<div class="card"><div class="stepshead"><h3>Photos${ph&&ph.length?` (${ph.length})`:""}</h3><div class="actions">${ph&&ph.length?`<button class="btn sm" type="button" data-phsend>${ic("send")}Send to lab</button>`:""}${S.canWrite?`<button class="btn sm" type="button" data-pick="photos"${busy?" disabled":""}>${ic("plus")}${busy?"Adding…":"Add photos"}</button>`:""}</div></div>
     ${ph==null?'<p class="hint">Loading photos…</p>':ph.length?`<div class="phgrid">${ph.map(p=>`<button type="button" data-photo="${esc(p.id)}" aria-label="Open photo"><img alt="" loading="lazy" src="${p.src}"></button>`).join("")}</div>`:'<p class="hint">No photos yet. Add shade photos, the prep, the fit or the lab slip.</p>'}</div>`}
+/* linked cases: two-way links between cases that belong together (e.g. a crown and its abutment, or upper and lower) */
+const linksOf=c=>(c.links||[]).map(caseOf).filter(Boolean);
+const caseLine=x=>[x.patient||"Patient",typeName(x),x.teeth&&x.teeth.length?teethLabel(x.teeth):"",STAGE[stage(x)]||""].filter(Boolean).join(" · ");
+function linksCard(c){
+  const ls=linksOf(c),have=new Set([c.id,...ls.map(x=>x.id)]);
+  const same=x=>(c.chart&&x.chart===c.chart)||(c.patient&&(x.patient||"").trim().toLowerCase()===c.patient.trim().toLowerCase());
+  const pool=S.cases.filter(x=>!have.has(x.id)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const mine=pool.filter(same),rest=pool.filter(x=>!same(x)&&isOpen(x)).slice(0,150);
+  const opt=x=>`<option value="${esc(x.id)}">${esc(caseLine(x))}</option>`;
+  return `<div class="card"><h3>Linked cases${ls.length?` (${ls.length})`:""}</h3>
+    ${ls.length?`<div class="links">${ls.map(x=>`<div class="lnk"><button class="lnkopen" data-open="${esc(x.id)}" data-s="${stage(x)}">${esc(caseLine(x))}</button><button class="rmx" data-unlink="${esc(x.id)}" aria-label="Unlink">×</button></div>`).join("")}</div>`:'<p class="hint">Link cases that go together, like a crown and its custom abutment, or an upper and lower appliance.</p>'}
+    ${mine.length||rest.length?`<div class="f"><label for="linkadd">Link another case</label><select id="linkadd" data-linkadd><option value="">Pick a case…</option>${mine.length?`<optgroup label="Same patient">${mine.map(opt).join("")}</optgroup>`:""}${rest.length?`<optgroup label="Other open cases">${rest.map(opt).join("")}</optgroup>`:""}</select></div>`:""}
+  </div>`}
+function setLink(a,b,on){
+  const add=(x,y)=>{const l=(x.links||[]).filter(id=>id!==y.id);if(on)l.push(y.id);return patchCase(x,{links:l},(on?"Linked to ":"Unlinked from ")+caseLine(y))};
+  return Promise.all([add(a,b),add(b,a)])}
 function renderPanel(){
   if(S.panel)loadPhotos(S.panel);
   const root=$("#panelRoot");
@@ -1599,6 +1619,7 @@ function renderPanel(){
       <form class="addstep" data-addstep><input id="addstep-in" placeholder="Add a check for this case (e.g. Shade photo sent)" autocomplete="off" aria-label="New step"><button class="btn sm" type="submit">Add</button></form>
     </div>
     <div class="actions"><button class="btn" type="button" data-caselabel>Print label</button>${S.dl?'<button class="btn" data-saveslip title="Saves a PDF you can open and print">Lab slip (PDF)</button>':""}<button class="btn" data-samepatient>+ New case for this patient</button></div>
+    ${linksCard(c)}
     ${lab?`<div class="card contact"><h3>${esc(lab.name)}</h3>
       ${lab.contact?`<div>Contact: ${esc(lab.contact)}</div>`:""}
       ${c.sentAt?`<div>Sent ${esc(fmtD(c.sentAt))}${c.tracking?` · Tracking <span class="v">${esc(c.tracking)}</span>`:""}</div>`:""}
@@ -1965,6 +1986,7 @@ document.addEventListener("click",async ev=>{
   if(ds.clearf!==undefined){S.q="";S.fWhere="all";S.fType="";S.fState="open";S.fQuick="";render(true);return}
   if(ds.open){S.panel=ds.open;S.arm=null;S.editSteps=false;render();return}
   if(ds.close!==undefined){S.panel=null;render();return}
+  if(ds.unlink){const c=caseOf(S.panel),o=caseOf(ds.unlink);if(c){if(o)setLink(c,o,false);else patchCase(c,{links:(c.links||[]).filter(id=>id!==ds.unlink)})}return}
   if(ds.pwshow){S.pwShow=S.pwShow===ds.pwshow?null:ds.pwshow;render(true);return}
   if(ds.copy!==undefined){try{await navigator.clipboard.writeText(ds.copy);toast("Copied")}catch(e){toast("Copy isn't available here. Select the text instead.")}return}
   if(ds.resetdraft!==undefined){S.draft=freshDraft();render(true);return}
@@ -2061,6 +2083,7 @@ document.addEventListener("input",ev=>{
 });
 document.addEventListener("change",async ev=>{
   const el=ev.target,ds=el.dataset;
+  if(ds.linkadd!==undefined){const c=caseOf(S.panel),o=caseOf(el.value);if(c&&o){setLink(c,o,true);toast("Linked to "+(o.patient||"case")+".")}return}
   if(el.id==="who"){setMe(el.value);renderHead();syncWhoCard();if(el.value)toast("Logging as "+el.value);return}
   if(el.id==="fWhere"){S.fWhere=el.value;render(true);return}
   if(el.id==="fType"){S.fType=el.value;render(true);return}
