@@ -20,3 +20,9 @@ define('DB_PASS', 'database-password-here');
 // gateway's .env as LAB_SYNC_SECRET (create one there with: node gateway/cli.js new-secret).
 // Leave this line out to keep the sync off.
 // define('OD_SYNC_SECRET', 'paste-the-64-character-secret-here');
+
+// Dental Dashboard tiles (optional). The same long random value goes in the
+// Dashboard's settings for the Lab Tracker. Make one with:
+//   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+// Leave this line out to keep the tiles off (the address then answers "not found").
+// define('TILE_TOKEN', 'paste-the-64-character-token-here');

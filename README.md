@@ -12,9 +12,23 @@ No patient data, passwords or database logins belong in this repository. They li
 | `api.php` | Saves and loads data, and handles the office password. Creates its database tables on first use. |
 | `config.sample.php` | Template for `config.php`, which holds the office password and database login. `config.php` is never committed. |
 | `od-sync.php` | Optional link to Open Dental. Only the office's Open Dental gateway can use it (every request is signed with `OD_SYNC_SECRET`). |
+| `tdc-tiles.php` | Optional tiles for the Dental Dashboard (`/tdc/tiles/due-week`, `late`, `to-check`). Only the Dashboard's server can read them, with `TILE_TOKEN`. Counts, case types and dates only, never patient names. |
 | `.htaccess` | Forces HTTPS and keeps `config.php` and the `.git` folder private. |
 
 Requirements: Hostinger web hosting with PHP 8.1 or newer and MySQL.
+
+## What this app stores, and why
+
+Everything is in one database table (`tdc_docs`). Data access is only in `api.php`, `od-sync.php` and `tdc-tiles.php`, so it can move to the office server later.
+
+| Collection | What's in it | Why |
+|---|---|---|
+| `cases` | Patient as first initial and last name, optional chart number and Open Dental patient number, case type, teeth, shade, material, lab, doctor, dates (sent, due back, delivery), step checklist with who checked each step, notes, lab messages, history | Following each case from scan to delivery |
+| `photos` | Case photos | Sending to the lab and comparing at delivery |
+| `labs` | Outside labs: contact details, website login, turnaround | Sending cases and checking status |
+| `settings` | Case types, steps, materials, doctors, shades, team initials, logo | Setup choices |
+
+No date of birth, phone, address or insurance is stored. This app runs on Hostinger, which has no BAA, so no new patient fields are added. In the live stage it moves to the office server and reads cases from Open Dental.
 
 ## Set up on Hostinger
 
@@ -23,6 +37,16 @@ Requirements: Hostinger web hosting with PHP 8.1 or newer and MySQL.
 3. **Connect this repository.** Under **Websites → Manage → Advanced → GIT**, use `https://github.com/MULLET156/TDC-Lab-Tracker.git`, branch `main`, then **Deploy**. Turn on **Auto Deployment** so every push to `main` updates the site.
 4. **Create `config.php`.** In **Files → File Manager**, copy `config.sample.php` to `config.php` in the site folder and fill in the office password and database details. Use `localhost` for `DB_HOST`. Pick an office password of at least 12 characters; changing it later signs every device out.
 5. **Sign in and bring over your data.** On the claude.ai version, go to **Setup → Backup, import & export → Full backup (.json)**. On the hosted site, sign in, go to the same section, choose that file under **Import** and confirm the preview.
+
+## Dental Dashboard tiles (optional)
+
+The Dental Dashboard can show three Lab Tracker tiles: **Due back this week**, **Late** and **Received, not checked**.
+
+1. Make a token. In hPanel → Advanced → SSH (or any computer with PHP), run `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`. Or ask Claude to make one for you; it should never be pasted into chat.
+2. In File Manager, open `config.php` and add `define('TILE_TOKEN', '...');` with that value.
+3. Put the same token, and the address `https://<this site>/tdc/tiles/due-week` (and `late`, `to-check`), in the Dashboard's settings for the Lab Tracker.
+
+Without `TILE_TOKEN` the tile addresses answer "not found". A wrong token gets "unauthorized". Tiles show counts, case types and due dates only, never a patient's name. Each item links to the case here, and staff still sign in to see who it is.
 
 ## Open Dental sync (optional)
 
