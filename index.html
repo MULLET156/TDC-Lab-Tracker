@@ -936,7 +936,7 @@ const FIELDS={
   shade:{label:"Shade",list:SHADES,ph:"e.g. A2"},
   material:{label:"Material",list:["e.max CAD","Zirconia","Celtra Duo","Empress CAD","Telio CAD (PMMA)","SprintRay Ceramic Crown","SprintRay C&B","NightGuard Flex","NightGuard Firm","Die & Model","Surgical guide resin","Denture base","Denture teeth","Flexible base"]},
   arch:{label:"Arch",opts:["Upper","Lower","Both"]},
-  implantSystem:{label:"Implant system",list:["Nobel Biocare","Straumann BLT","Straumann TLX","Neodent","Zimmer Biomet","BioHorizons","Hiossen","MIS","Megagen","Dentium","Implant Direct"]},
+  implantSystem:{label:"Implant system",list:["Blue Sky Bio","Nobel Biocare","Straumann BLT","Straumann TLX","Neodent","Zimmer Biomet","BioHorizons","Hiossen","MIS","Megagen","Dentium","Implant Direct"]},
   implantDia:{label:"Implant diameter (mm)",num:true},
   implantLen:{label:"Implant length (mm)",num:true},
   tibase:{label:"Ti-base size",ph:"e.g. NP 3.5 · GH 1.0 · post 4.0"},
@@ -1367,6 +1367,8 @@ function viewCases(){
 }
 
 /* ---------- new case ---------- */
+/* details with a default (Setup → Case options) are filled in when a new case's type is picked, if still empty */
+function fillFieldDefs(d){const t=typeOf(d.type);if(!t)return;const fl=F(),o={...(d.fields||{})};for(const k of t.fields){if(k==="material")continue;const f=fl[k];if(f&&typeof f.def==="string"&&f.def&&!o[k])o[k]=f.def}d.fields=o}
 function freshDraft(){return {patient:"",chart:"",dob:"",type:"",lab:"inhouse",teeth:[],fields:{},due:"",seat:"",doctor:DEF_DOCTOR(),rush:false,remake:false,remakeReason:"",notes:"",labNo:"",tracking:"",fee:"",sentAt:"",dueAuto:true}}
 /* fill the ready-by / due-back date from the default, unless someone typed a date */
 function autoDue(d){if(!d.dueAuto&&d.due)return;const x=defDue(d);if(!x)return;let v=addDays(todayISO(),x.n);if(d.seat&&v>d.seat)v=d.seat;d.due=v;d.dueAuto=true}
@@ -1743,11 +1745,13 @@ function viewMaterials(){
   const cats=MATCATS(),fl=F(),usedBy=k=>TYPES().filter(t=>!t.off&&t.fields.includes(k)).map(t=>t.name);
   const dets=Object.entries(fl).filter(([k])=>k!=="shade"&&k!=="material").map(([k0,f])=>{const k=esc(k0),kd=kindOf(f),u=usedBy(k0);
     const n=kd==="select"?pl(f.opts.length,"choice"):f.list?pl(f.list.length,"suggestion"):"";
-    return optCard("f:"+k0,f.label,(kd==="select"?"Dropdown":f.list?"Text with suggestions":KINDS[kd])+(n?" · "+n:""),`
+    const dv=typeof f.def==="string"?f.def:"",canDef=kd==="select"||kd==="text";
+    return optCard("f:"+k0,f.label,(kd==="select"?"Dropdown":f.list?"Text with suggestions":KINDS[kd])+(n?" · "+n:"")+(dv?" · default "+dv:""),`
       <div class="fields">
         <div class="f full"><label for="of-${k}">Name</label><input id="of-${k}" data-olabel="${k}" value="${esc(f.label)}" autocomplete="off"></div>
         ${kd==="select"?`<div class="f full"><label for="oo-${k}">Dropdown choices (separate with commas)</label><textarea id="oo-${k}" data-oopts="${k}" rows="2">${esc(f.opts.join(", "))}</textarea></div>`:""}
         ${f.list?`<div class="f full"><label for="ol-${k}">Suggestions as you type (separate with commas)</label><textarea id="ol-${k}" data-olist="${k}" rows="2">${esc(f.list.join(", "))}</textarea></div>`:""}
+        ${canDef?`<div class="f"><label for="odf-${k}">Default on new cases</label>${kd==="select"?`<select id="odf-${k}" data-odef="${k}"><option value="">None</option>${[...new Set([...f.opts,dv].filter(Boolean))].map(o=>`<option${o===dv?" selected":""}>${esc(o)}</option>`).join("")}</select>`:`<input id="odf-${k}" data-odef="${k}" value="${esc(dv)}"${f.list?` list="dl-${k}"`:""} placeholder="None" autocomplete="off">`}</div>`:""}
       </div>
       <p class="hint">${u.length?"Asked on: "+esc(u.join(", "))+".":"Not used by any case type that's turned on."} Add or remove this detail on a case type in its Edit card under Case types & checklists.</p>`)}).join("");
   return `<div class="sechead" id="mats"><h2>Case options</h2><span class="hint">Every choice offered when filling in a case</span></div>
@@ -1963,7 +1967,7 @@ document.addEventListener("click",async ev=>{
   if(ds.copy!==undefined){try{await navigator.clipboard.writeText(ds.copy);toast("Copied")}catch(e){toast("Copy isn't available here. Select the text instead.")}return}
   if(ds.resetdraft!==undefined){S.draft=freshDraft();render(true);return}
   /* new-case pickers */
-  if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};render(true);return}
+  if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};fillFieldDefs(S.draft);render(true);return}
   if(ds.pickLab){S.draft.lab=ds.pickLab;const l=labOf(ds.pickLab);if(l&&!S.draft.sentAt)S.draft.sentAt=todayISO();autoDue(S.draft);render(true);return}
   if(ds.tooth||ds.arch){
     const inPanel=b.closest("[data-form=edit]");
@@ -2113,6 +2117,10 @@ document.addEventListener("change",async ev=>{
     if(ds.oopts){if(!arr.length){el.value=cur.opts.join(", ");toast("A dropdown needs at least one choice.");return}saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),opts:arr}});return}
     saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),list:arr}});return}
   if(el.id==="odefdoc"){const old=DEF_DOCTOR();saveLists({...listsNow(),defaultDoctor:el.value});if(S.draft&&(!S.draft.doctor||S.draft.doctor===old))S.draft.doctor=el.value;toast(el.value?"New cases start with "+el.value+".":"No default doctor.");return}
+  if(ds.odef){const k=ds.odef,cur=F()[k];if(!cur)return;const v=el.value.trim(),old=typeof cur.def==="string"?cur.def:"";if(v===old)return;
+    saveTypes(null,null,{...FDEFS(),[k]:{...(FDEFS()[k]||{}),def:v}});
+    if(S.draft&&S.draft.fields&&(S.draft.fields[k]||"")===old){const t=typeOf(S.draft.type);if(t&&t.fields.includes(k))S.draft.fields={...S.draft.fields,[k]:v}}
+    toast(v?"New cases start with "+v+".":"No default for "+cur.label+".");return}
   if(ds.olists){const arr=[...new Set(el.value.split(",").map(x=>x.trim()).filter(Boolean))];saveLists({...listsNow(),[ds.olists]:arr});toast("Saved");return}
   /* shades & materials */
   if(ds.mcname!==undefined){const id=el.closest("[data-mc]")?.dataset.mc,l=listsNow(),mc=l.matCats.find(x=>x.id===id),v=el.value.trim();if(!mc)return;if(!v){el.value=mc.name;return}if(v===mc.name)return;mc.name=v;saveLists(l);return}
