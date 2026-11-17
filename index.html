@@ -559,6 +559,32 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 <style>
 .tsum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .tsum .tsel{font-family:var(--f-mono);font-weight:700;font-size:15px;flex:1;min-width:0}
+/* phones: the open case uses the same compact sizes as the case list (Ryan, 2026-11-16) */
+@media (max-width:640px){
+  .panel{gap:8px;padding-top:12px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+  .ph h2{font-size:18px}
+  .ph .sub{gap:4px;margin-top:4px}
+  .ph .hint{margin-top:4px!important;font-size:12px}
+  .panel .card{padding:10px 12px;gap:8px}
+  .panel .card h3{font-size:12px}
+  .panel .btn{min-height:36px;padding:6px 12px;font-size:14px}
+  .panel .btn.sm{min-height:30px;padding:4px 10px;font-size:13px}
+  .pacts.top{display:flex;flex-wrap:nowrap;gap:6px}
+  .pacts.top .btn{flex:1 1 0;min-width:0;padding:6px 6px;white-space:nowrap}
+  .seatbar{padding:8px 10px;gap:2px 10px}
+  .seatbar b{font-size:15px}
+  .seatbar .hint{font-size:12.5px}
+  .stp{padding:6px 2px;gap:8px}
+  .stp input{width:22px;height:22px}
+  .stp .by{font-size:11px}
+  .bigprog .pc{font-size:11.5px}
+  .panel .f input,.panel .f select,.panel .f textarea{padding:7px 9px}
+  .panel .fields{gap:8px}
+  /* 911 and needs-new-date badges on the bottom tab bar, to the left of the icon */
+  header .band .tile .tbadges{display:flex;position:absolute;top:0;left:auto;right:calc(50% + 9px);gap:1px}
+  header .band .tile .tbadges i{font-size:9.5px;padding:0 4px;border-width:1px;line-height:1.35}
+  header .band .tile .tbadges:has(.b911) .bdate{display:none} /* one badge per tab: 911 first */
+}
 /* outside-lab progress label */
 .pill.snd{background:color-mix(in srgb,var(--violet) 14%,var(--surface));color:var(--violet);border:1px solid color-mix(in srgb,var(--violet) 45%,transparent)}
 .pill.snd.notsent{background:var(--sunk);color:var(--muted);border-color:var(--line)}
