@@ -42,9 +42,10 @@ No date of birth, phone, address or insurance is stored. This app runs on Hostin
 
 The Dental Dashboard can show three Lab Tracker tiles: **Due back this week**, **Late** and **Received, not checked**.
 
-1. Make a token. In hPanel → Advanced → SSH (or any computer with PHP), run `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`. Or ask Claude to make one for you; it should never be pasted into chat.
-2. In File Manager, open `config.php` and add `define('TILE_TOKEN', '...');` with that value.
-3. Put the same token, and the address `https://<this site>/tdc/tiles/due-week` (and `late`, `to-check`), in the Dashboard's settings for the Lab Tracker.
+1. In the Lab Tracker, go to **Setup › Dashboard tiles** and tap **Turn on**. A tile code is made and copied.
+2. In the Dental Dashboard, go to **Settings › Other apps › Lab Tracker** and paste it.
+
+**Copy code** copies it again, **New code** replaces it (paste the new one into the Dashboard), and **Turn off** stops the tiles. The code is kept on the server, in a table the page can't read. If `TILE_TOKEN` is set in `config.php`, that one is used instead and can only be changed there.
 
 Without `TILE_TOKEN` the tile addresses answer "not found". A wrong token gets "unauthorized". Tiles show counts, case types and due dates only, never a patient's name. Each item links to the case here, and staff still sign in to see who it is.
 
