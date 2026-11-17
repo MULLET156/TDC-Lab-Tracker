@@ -8,7 +8,8 @@
  *
  * Only the Dental Dashboard calls this, from its server, with
  *   Authorization: Bearer <TILE_TOKEN>
- * TILE_TOKEN lives in config.php (never in the repo). Without it set, this answers 404.
+ * The code is made in Setup › Dashboard tiles (kept in the tdc_secrets table), or set as TILE_TOKEN
+ * in config.php (never in the repo); config.php wins. Without one, this answers 404.
  *
  * Tiles carry counts, case types and dates only: never patient names, chart or
  * patient numbers (the app runs on Hostinger, which has no BAA). Nothing about a
@@ -37,9 +38,6 @@ function tile_fail(int $code, string $error): void { tile_out($code, ['error' =>
 $cfgFile = __DIR__ . '/config.php';
 if (!is_file($cfgFile)) tile_fail(404, 'not_found');
 require $cfgFile;
-// Tiles are off until a long token is set in config.php.
-if (!defined('TILE_TOKEN') || strlen((string)TILE_TOKEN) < 32) tile_fail(404, 'not_found');
-
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') tile_fail(405, 'method');
 $id = (string)($_GET['id'] ?? '');
 if (!in_array($id, TILE_IDS, true)) tile_fail(404, 'not_found');
@@ -59,6 +57,14 @@ try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS tdc_tile_hits (ts BIGINT NOT NULL)$cs");
 } catch (Throwable $e) { tile_fail(503, 'unavailable'); }
 
+/* ---------- the tile code: config.php wins, otherwise the one made in Setup. None = tiles off (404). ---------- */
+$token = (defined('TILE_TOKEN') && strlen((string)TILE_TOKEN) >= 32) ? (string)TILE_TOKEN : '';
+if ($token === '') {
+    try { $r = $pdo->query("SELECT value FROM tdc_secrets WHERE name = 'TILE_TOKEN'")->fetch(); $token = $r ? (string)$r['value'] : ''; }
+    catch (Throwable $e) { $token = ''; }   // table not made yet: tiles are off
+}
+if (strlen($token) < 32) tile_fail(404, 'not_found');
+
 /* ---------- rate limit (counts every request, good token or not) ---------- */
 try {
     $now = time();
@@ -74,7 +80,7 @@ if ($auth === '' && function_exists('getallheaders')) {
     foreach ((array)getallheaders() as $k => $v) if (strtolower((string)$k) === 'authorization') $auth = (string)$v;
 }
 $given = preg_match('/^Bearer\s+(\S+)$/', $auth, $m) ? $m[1] : '';
-if ($given === '' || !hash_equals(hash('sha256', (string)TILE_TOKEN), hash('sha256', $given))) tile_fail(401, 'unauthorized');
+if ($given === '' || !hash_equals(hash('sha256', $token), hash('sha256', $given))) tile_fail(401, 'unauthorized');
 
 /* ---------- data: the same rules the tracker page uses (index.html: isOpen, allDone, isLate, isIn) ---------- */
 $tz = new DateTimeZone(defined('TILE_TIMEZONE') ? (string)TILE_TIMEZONE : 'America/Los_Angeles');

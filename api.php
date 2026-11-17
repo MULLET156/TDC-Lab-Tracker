@@ -106,6 +106,11 @@ function ensure_schema(PDO $pdo, string $driver): void {
         pw_fp CHAR(16) NOT NULL,
         expires BIGINT NOT NULL
     )$cs");
+    // Codes made in Setup (the Dashboard tile code). The page's data calls can't read this table.
+    $pdo->exec("CREATE TABLE IF NOT EXISTS tdc_secrets (
+        name VARCHAR(32) NOT NULL PRIMARY KEY,
+        value TEXT NOT NULL
+    )$cs");
     $pdo->exec("CREATE TABLE IF NOT EXISTS tdc_fails (
         ip VARCHAR(64) NOT NULL,
         ts BIGINT NOT NULL
@@ -297,6 +302,23 @@ try {
     switch ($op) {
         case 'rev':
             out(200, ['ok' => true, 'rev' => current_rev($pdo)]);
+
+        case 'tiletoken': {
+            // The Dental Dashboard's tile code (TDC-Office-Plan CONTRACT §5b): status, show (to copy), new, or off.
+            // A TILE_TOKEN in config.php wins and can't be changed from Setup.
+            $do = (string)($req['do'] ?? 'status');
+            $inCfg = defined('TILE_TOKEN') && strlen((string)TILE_TOKEN) >= 32;
+            $get = function () use ($pdo): string { $st = $pdo->prepare('SELECT value FROM tdc_secrets WHERE name = ?'); $st->execute(['TILE_TOKEN']); $r = $st->fetch(); return $r ? (string)$r['value'] : ''; };
+            if ($do === 'new' || $do === 'off') {
+                if ($inCfg) fail(409, 'in_config', 'The tile code is set in config.php on the server, so change it there.');
+                $pdo->prepare('DELETE FROM tdc_secrets WHERE name = ?')->execute(['TILE_TOKEN']);
+                if ($do === 'new') $pdo->prepare('INSERT INTO tdc_secrets (name, value) VALUES (?, ?)')->execute(['TILE_TOKEN', bin2hex(random_bytes(32))]);
+            } elseif ($do !== 'status' && $do !== 'show') fail(400, 'invalid_argument', 'Bad request.');
+            $k = $inCfg ? (string)TILE_TOKEN : $get();
+            $o = ['ok' => true, 'set' => $k !== '', 'source' => $inCfg ? 'config' : ($k !== '' ? 'setup' : '')];
+            if ($do !== 'status' && $k !== '') $o['key'] = $k;
+            out(200, $o);
+        }
 
         case 'get':
             out(200, ['ok' => true] + read_get($pdo, $req) + ['rev' => current_rev($pdo)]);

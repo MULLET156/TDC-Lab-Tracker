@@ -936,7 +936,8 @@ window.TDC=(function(){
   }
   async function batch(writes){for(let i=0;i<writes.length;i+=150){await call("batch",{writes:writes.slice(i,i+150)})}pollRev=lastRev;refreshSoon()}
   async function logout(){try{await call("logout")}catch(e){}location.reload()}
-  return {db,downloads,signIn,logout,batch};
+  const tileToken=what=>call("tiletoken",{do:what||"status"});
+  return {db,downloads,signIn,logout,batch,tileToken};
 })();
 </script>
 <script>
@@ -1749,6 +1750,31 @@ async function runDelCases(btn){
     S.photos={};delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
   catch(e){delBusy=false;closeDelCases();writeFail(e)}}
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
+/* Dashboard tiles: the code the TDC Dental Dashboard uses to read this app's three tiles (TDC-Office-Plan CONTRACT §5b).
+   The code itself stays on the server; the page only learns whether it's on until someone copies it. */
+const hasTiles=()=>typeof TDC!=="undefined"&&!!TDC.tileToken;
+function loadTile(){if(!hasTiles()||S.tileBusy)return;S.tileBusy=true;TDC.tileToken("status").then(r=>{S.tile=r},()=>{S.tile={err:true}}).finally(()=>{S.tileBusy=false;if(S.tab==="setup")render(true)})}
+function tilesHTML(){
+  if(!hasTiles())return"";
+  if(!S.tile)loadTile();
+  const t=S.tile,on=t&&t.set,cfg=t&&t.source==="config";
+  const state=!t?'<span class="hint">Checking…</span>':t.err?'<span class="hint">Couldn\'t check. Reload to try again.</span>':on?'<span class="pill rdyp">On</span>':'<span class="pill">Off</span>';
+  const btns=!t||t.err?"":cfg?`<button class="btn" type="button" data-tile="show">Copy code</button>`
+    :on?`<button class="btn" type="button" data-tile="show">Copy code</button><button class="btn" type="button" data-tile="new">New code</button><button class="btn danger" type="button" data-tile="off">Turn off</button>`
+    :`<button class="btn pri" type="button" data-tile="new">Turn on</button>`;
+  return `<div class="sechead" id="sec-tiles"><h2>Dashboard tiles</h2></div>
+  <div class="card"><p class="hint">Lets the TDC Dental Dashboard show three tiles from here: <b>Due back this week</b>, <b>Late</b> and <b>Received, not checked</b>. They show counts, case types and dates only, never a patient's name.</p>
+    <div class="f"><span class="lbl">Tile code ${state}</span><p class="hint">${on?(cfg?"Set in config.php on the server. ":"")+"Copy the code into the Dashboard's Settings › Other apps › Lab Tracker. Anyone with it can see the three counts, nothing else.":"Turn on to make a code, then paste it into the Dashboard's Settings › Other apps › Lab Tracker."}</p>
+    <div class="actions">${btns}</div><div id="tileOut"></div></div></div>`}
+async function tileAct(what){
+  if(!hasTiles())return;
+  if(what==="new"&&S.tile&&S.tile.set&&!confirm("Make a new tile code? The Dashboard stops showing the Lab Tracker tiles until the new code is pasted into its settings."))return;
+  if(what==="off"&&!confirm("Turn the Dashboard tiles off? The Dashboard stops showing the Lab Tracker tiles."))return;
+  try{const r=await TDC.tileToken(what);S.tile={set:r.set,source:r.source};render(true);
+    if(!r.key){toast("Dashboard tiles are off.");return}
+    try{await navigator.clipboard.writeText(r.key);toast("Tile code copied. Paste it into the Dashboard's settings.")}
+    catch(e){const o=$("#tileOut");if(o){o.innerHTML='<div class="f"><input readonly aria-label="Tile code" class="mono"></div>';const i=o.querySelector("input");i.value=r.key;i.onclick=()=>i.select();i.select()}toast("Copy the tile code below.")}}
+  catch(e){toast(e&&e.message||"Couldn't do that.")}}
 function viewSetup(){
   const types=TYPES();
   const imp=S.imp?`<div class="imp"><b>Ready to import ${esc(S.imp.file)}</b><ul>${S.imp.summary.map(s=>`<li>${esc(s)}</li>`).join("")}</ul><div class="actions"><button class="btn pri" data-impgo>Import now</button><button class="btn" data-impcancel>Cancel</button></div></div>`:"";
@@ -1780,6 +1806,7 @@ function viewSetup(){
   ${viewMaterials()}
 
   ${logoHTML()}
+  ${tilesHTML()}
   <div class="sechead"><h2>Backup, import & export</h2></div>
   <div class="card">
     <div class="f"><span class="lbl">Export</span><div class="actions">${S.dl?`<button class="btn" data-expjson>Full backup (.json)</button><button class="btn" data-expcsv>Cases spreadsheet (.csv)</button><button class="btn" data-explabs>Labs (.csv)</button>`:'<span class="hint">Downloads aren\'t available in this view.</span>'}</div></div>
@@ -2105,6 +2132,7 @@ document.addEventListener("click",async ev=>{
   if(ds.impcancel!==undefined){S.imp=null;render(true);return}
   if(ds.impgo!==undefined){runImport();return}
   if(ds.logoclear){const k=ds.logoclear==="d"?"d":"l";if(!needDb())return;try{await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).delete();S.logo[k]=null;applyLogo();render(true);toast(k==="l"?"Logo removed.":"Dark mode logo removed.")}catch(e){writeFail(e)}return}
+  if(ds.tile){tileAct(ds.tile);return}
   if(ds.delcases!==undefined){askDelCases();return}
   if(ds.delcasesNo!==undefined){closeDelCases();return}
   if(ds.delcasesGo!==undefined){runDelCases(b);return}
