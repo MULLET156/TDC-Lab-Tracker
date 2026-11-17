@@ -191,6 +191,22 @@ try {
         if (!is_array($cases) || count($cases) > MAX_CASES) fail(400, 'bad_request', 'Bad case list.');
         $labs = all_docs($pdo, 'labs');
         $existing = all_docs($pdo, 'cases', 'od-');
+        // Open Dental sends the provider's short code (e.g. MILL). Show the doctor's name from Setup › Doctors
+        // instead, when exactly one doctor matches (MILL → "Dr. Millet"); otherwise keep the code.
+        $lists = load($pdo, 'settings', 'lists') ?? [];
+        $docs = array_values(array_filter(array_map('strval', is_array($lists['doctors'] ?? null) ? $lists['doctors'] : []), fn($d) => trim($d) !== ''));
+        if (is_string($lists['defaultDoctor'] ?? null) && $lists['defaultDoctor'] !== '' && !in_array($lists['defaultDoctor'], $docs, true)) $docs[] = $lists['defaultDoctor'];
+        $docName = function (string $code) use ($docs): string {
+            $k = strtolower(trim($code));
+            if ($k === '') return $code;
+            $hits = [];
+            foreach ($docs as $d) {
+                $bare = strtolower(trim(preg_replace('/^(dr\.?|doctor)\s+/i', '', trim($d))));
+                $last = strtolower((string)preg_replace('/^.*\s/', '', $bare));
+                if ($bare === $k || str_starts_with($bare, $k) || str_starts_with($last, $k)) $hits[$d] = true;
+            }
+            return count($hits) === 1 ? (string)array_key_first($hits) : $code;
+        };
         $created = 0; $updated = 0; $notes = [];
         $pdo->beginTransaction();
         foreach ($cases as $in) {
@@ -215,7 +231,7 @@ try {
                     'patient' => $od['patient'], 'chart' => '', 'patNum' => $od['patnum'], 'dob' => '', 'type' => '',
                     'lab' => lab_for($pdo, $labs, $od['lab'], $od['labIn'], $notes),
                     'teeth' => [], 'fields' => new stdClass(), 'due' => $od['due'], 'seat' => $od['seat'],
-                    'doctor' => $od['doctor'], 'rush' => false, 'remake' => false, 'remakeReason' => '', 'notes' => '',
+                    'doctor' => $docName($od['doctor']), 'rush' => false, 'remake' => false, 'remakeReason' => '', 'notes' => '',
                     'labNo' => '', 'tracking' => '', 'fee' => '', 'sentAt' => $od['sent'], 'dueAuto' => false,
                     'steps' => [], 'state' => 'open', 'createdAt' => $now, 'createdBy' => 'OD', 'updatedAt' => $now, 'updatedBy' => 'Open Dental',
                     'log' => [['at' => $now, 'by' => 'OD', 'what' => 'Created from Open Dental' . ($od['lab'] !== '' ? ' (' . $od['lab'] . ')' : '')]],
@@ -234,9 +250,10 @@ try {
             $map = ['patient' => 'patient', 'doctor' => 'doctor', 'due' => 'due', 'seat' => 'seat', 'sent' => 'sentAt'];
             foreach ($map as $from => $to) {
                 if (($last[$from] ?? null) === $od[$from]) continue;
-                $c[$to] = $od[$from];
+                $c[$to] = $from === 'doctor' ? $docName($od['doctor']) : $od[$from];
                 $label = ['patient' => 'Patient', 'doctor' => 'Doctor', 'due' => 'Due date', 'seat' => 'Delivery appointment', 'sent' => 'Sent to lab'][$from];
-                $changed[] = $label . ' → ' . (in_array($from, ['due', 'seat', 'sent'], true) ? fmt_day($od[$from]) : ($od[$from] !== '' ? $od[$from] : 'none'));
+                $shown = $from === 'doctor' ? $c['doctor'] : $od[$from];
+                $changed[] = $label . ' → ' . (in_array($from, ['due', 'seat', 'sent'], true) ? fmt_day($od[$from]) : ($shown !== '' ? $shown : 'none'));
             }
             if (($last['lab'] ?? null) !== $od['lab']) {
                 $started = false;
@@ -252,7 +269,10 @@ try {
             // The patient number follows Open Dental quietly (no log line); a gateway that doesn't send it leaves it alone.
             $pnChanged = $od['patnum'] !== '' && ($last['patnum'] ?? '') !== $od['patnum'];
             if ($pnChanged) $c['patNum'] = $od['patnum'];
-            if (!$changed && !$pnChanged && ($last['received'] ?? '') === $od['received'] && ($last['labIn'] ?? null) === $od['labIn']) continue;
+            // Cases that arrived with the bare code (before the name lookup) get the doctor's name quietly.
+            $drFixed = ($c['doctor'] ?? '') === $od['doctor'] && $docName($od['doctor']) !== $od['doctor'];
+            if ($drFixed) $c['doctor'] = $docName($od['doctor']);
+            if (!$changed && !$pnChanged && !$drFixed && ($last['received'] ?? '') === $od['received'] && ($last['labIn'] ?? null) === $od['labIn']) continue;
             $c['od']['last'] = $od;
             $c['od']['synced'] = now_ms();
             if ($changed) {
