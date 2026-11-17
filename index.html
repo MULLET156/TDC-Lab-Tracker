@@ -559,6 +559,10 @@ nav.tabs button.newtab[aria-current="page"]{background:var(--accent);color:var(-
 <style>
 .tsum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .tsum .tsel{font-family:var(--f-mono);font-weight:700;font-size:15px;flex:1;min-width:0}
+/* outside-lab progress label */
+.pill.snd{background:color-mix(in srgb,var(--violet) 14%,var(--surface));color:var(--violet);border:1px solid color-mix(in srgb,var(--violet) 45%,transparent)}
+.pill.snd.notsent{background:var(--sunk);color:var(--muted);border-color:var(--line)}
+.pill.snd.back{background:var(--violet);color:var(--surface);border-color:var(--violet)}
 /* linked cases */
 .links{display:grid;gap:6px}.lnk{display:flex;gap:6px;align-items:center}.lnkopen{flex:1;min-width:0;text-align:left;border:1px solid var(--line);border-left:5px solid var(--c);background:var(--surface);border-radius:8px;padding:9px 12px;font-weight:600;overflow-wrap:anywhere}.lnkopen:hover{border-color:var(--accent)}
 </style>
@@ -1143,6 +1147,23 @@ let pending=0;
 async function guard(fn){pending++;sync("busy","Saving…");try{await fn();pending--;if(!pending)idle();return true}catch(e){pending--;sync("err","Not saved");writeFail(e);return false}}
 const upd=(path,patch)=>needDb()&&guard(()=>S.db.doc(path).update(patch));
 const setDoc=(path,data)=>needDb()&&guard(()=>S.db.doc(path).set(data));
+/* outside-lab progress label (Ryan, 2026-11-16): Not sent → Sent → At lab → Back. Checking "Shipped / uploaded" marks it sent. */
+const STEP_SENT=/shipped|uploaded/i,STEP_ATLAB=/lab confirmed|confirmed received|received by (the )?lab/i,STEP_BACK=/back in office|received back|back from (the )?lab/i;
+const msDay=ms=>ms?iso(new Date(ms)):"";
+function stepDone(c,re){const s=(c.steps||[]).find(x=>x.done&&re.test(x.l||""));return s?{at:msDay(s.at)}:null}
+function sendState(c){
+  if(isIn(c)||!isOpen(c)||allDone(c))return null;
+  const last=(c.od&&c.od.last)||{};
+  const back=stepDone(c,STEP_BACK);if(back||last.received)return{k:"back",t:"Back",d:(back&&back.at)||last.received||""};
+  const atl=stepDone(c,STEP_ATLAB);if(atl)return{k:"atlab",t:"At lab",d:atl.at};
+  const hasSentStep=(c.steps||[]).some(x=>STEP_SENT.test(x.l||""));
+  const sent=stepDone(c,STEP_SENT);
+  if(sent||last.sent||(!hasSentStep&&c.sentAt))return{k:"sent",t:"Sent",d:c.sentAt||last.sent||(sent&&sent.at)||""};
+  return{k:"notsent",t:"Not sent",d:""};
+}
+const fmtShort=s=>s?new Date(s+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"";
+function sendPill(c){const x=sendState(c);if(!x)return"";
+  return `<span class="pill snd ${x.k}" title="Outside lab: ${esc(x.t.toLowerCase())}">${esc(x.t)}${x.d?" · "+esc(fmtShort(x.d)):""}</span>`}
 async function toggleStep(c,i,label,on,me){
   let base=c.steps,log=c.log;
   if(S.db){try{const snap=await S.db.doc("cases/"+c.id).get();if(snap.exists){const d=snap.data();if(Array.isArray(d.steps))base=d.steps;if(Array.isArray(d.log))log=d.log}}catch(e){}}
@@ -1150,7 +1171,10 @@ async function toggleStep(c,i,label,on,me){
   if(j<0){toast("Someone just changed this case's steps. Check it again.");render(true);return}
   if(!!base[j].done===on)return;
   const steps=base.map((x,k)=>k===j?(on?{l:x.l,done:true,by:me,at:Date.now()}:{l:x.l,done:false}):x);
-  c.log=log;patchCase(c,{steps},(on?"Checked: ":"Unchecked: ")+label);
+  const extra={};
+  /* "Shipped / uploaded" sets the date sent (replacing the old automatic one from when the lab was picked) */
+  if(on&&!isIn(c)&&STEP_SENT.test(label)&&(!c.sentAt||c.sentAt<=msDay(c.createdAt)))extra.sentAt=todayISO();
+  c.log=log;patchCase(c,{steps,...extra},(on?"Checked: ":"Unchecked: ")+label);
 }
 /* a missed delivery date that isn't replaced within 3 days puts the case on hold (once per missed date) */
 const HOLD_AFTER=3,autoHeld=new Set();
@@ -1307,7 +1331,7 @@ function caseRow(c){
   const out=!isIn(c);
   const ld=steps.filter(s=>s.done&&s.at).sort((a,b)=>b.at-a.at)[0];
   const lastBy=ld?` <span class="lastby">· Last: ${esc(ld.l)} <span class="init">${esc(ld.by||"?")}</span></span>`:"";
-  const extras=[out&&c.sentAt&&"Sent "+fmtD(c.sentAt),fv.shade&&"Shade "+fv.shade,fv.tibase&&"Ti-base "+fv.tibase,fv.arch].filter(Boolean).map(esc).join(" · ");
+  const extras=[fv.shade&&"Shade "+fv.shade,fv.tibase&&"Ti-base "+fv.tibase,fv.arch].filter(Boolean).map(esc).join(" · ");
   const dueTxt=c.state==="delivered"?(c.deliveredAt?"Delivered "+fmtD(c.deliveredAt):"Delivered"):(c.due?(late?"Late · ":(out?"Back ":"Ready by "))+fmtD(c.due):"No due date");
   const seatTxt=c.seat&&isOpen(c)?`<span class="seat${seatPassed(c)||is911(c)?" warn":""}">Delivery ${esc(fmtD(c.seat))}</span>`:"";
   const flags=(is911(c)?'<span class="pill p911">🚨 911</span>':"")+(seatPassed(c)?'<span class="pill nnd">Needs new delivery date</span>':"")+(isTight(c)?'<span class="pill tight">Tight: back right before delivery</span>':"")+(c.remake?'<span class="pill remake">Remake</span>':"")+(c.od?'<span class="pill od" title="Created in Open Dental">OD</span>':"");
@@ -1316,7 +1340,7 @@ function caseRow(c){
     <span class="strip"></span>
     <span class="cmain">
       <span class="pt">${esc(c.patient||"Patient")}${c.chart?`<small>#${esc(c.chart)}</small>`:c.patNum?`<small>Pt #${esc(c.patNum)}</small>`:""}</span>
-      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${c.rush?'<span class="pill rush">Rush</span>':""}${linksOf(c).length?`<span class="pill" title="Linked cases">Linked ${linksOf(c).length}</span>`:""}${flags}${extras?`<span>${extras}</span>`:""}</span>
+      <span class="cmeta"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${sendPill(c)}${c.rush?'<span class="pill rush">Rush</span>':""}${linksOf(c).length?`<span class="pill" title="Linked cases">Linked ${linksOf(c).length}</span>`:""}${flags}${extras?`<span>${extras}</span>`:""}</span>
       <span class="next">${isOpen(c)?(nx?`Next: <b>${esc(nx.l)}</b>`:(c.state==="hold"&&allDone(c)?'<span class="pill st">On hold</span> <span class="pill st">Ready to deliver</span>':`<span class="pill st">${STAGE[st]}</span>`)):`<span class="pill st">${STAGE[st]}</span>`}${c.state==="hold"&&nx?' <span class="pill st">On hold</span>':""}${lastBy}</span>
     </span>
     <span class="cside">${S.fState==="all"&&c.createdAt>1e11?`<span class="created">Created ${esc(fmtD(iso(new Date(c.createdAt))))}</span>`:""}<span class="due${late?" late":""}">${esc(dueTxt)}</span>${seatTxt}<span class="prog"><i style="width:${steps.length?Math.round(d/steps.length*100):0}%"></i></span><span class="pc">${d}/${steps.length} steps</span></span>
@@ -1637,7 +1661,7 @@ function renderPanel(){
   /* slide in only when the sheet opens, not on every redraw */
   root.innerHTML=`<div class="scrim" data-scrim><div class="panel${prev?"":" enter"}" role="dialog" aria-modal="true" aria-labelledby="ph-t">
     <div class="ph"><div><h2 id="ph-t">${esc(c.patient||"Patient")}${c.chart?` <span class="pc">#${esc(c.chart)}</span>`:""}${c.patNum?` <span class="pc" title="Open Dental patient number">Pt #${esc(c.patNum)}</span>`:""}${c.dob?` <span class="pc">DOB ${esc(fmtDOB(c.dob))}</span>`:""}</h2>
-      <div class="sub" data-s="${st}"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span><span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
+      <div class="sub" data-s="${st}"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${sendPill(c)}<span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
       <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
       <button class="btn sm" data-close aria-label="Close">Close</button></div>
     ${seatBar(c)}
@@ -2055,7 +2079,7 @@ document.addEventListener("click",async ev=>{
   if(ds.resetdraft!==undefined){S.draft=freshDraft();render(true);return}
   /* new-case pickers */
   if(ds.pickType){const old=S.draft.type;S.draft.type=ds.pickType;autoDue(S.draft);S.draft.fields={...S.draft.fields,material:matAfter(old,ds.pickType,(S.draft.fields||{}).material)};fillFieldDefs(S.draft);render(true);return}
-  if(ds.pickLab){S.draft.lab=ds.pickLab;const l=labOf(ds.pickLab);if(l&&!S.draft.sentAt)S.draft.sentAt=todayISO();autoDue(S.draft);render(true);return}
+  if(ds.pickLab){S.draft.lab=ds.pickLab;autoDue(S.draft);render(true);return}
   if(ds.teethopen){S.teethOpen=teethKey(ds.teethopen);render(true);return}
   if(ds.teethdone!==undefined){S.teethOpen=null;render(true);return}
   if(ds.tooth||ds.arch){
