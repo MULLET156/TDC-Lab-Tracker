@@ -19,9 +19,17 @@ header #setupBtn[aria-pressed="true"]{background:var(--hb-set);border-color:var(
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <title>TDC Lab Tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="preload" href="fonts/figtree.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="tdc-shared.css">
+<script src="tdc-shared.js" defer></script>
+<style>/* group heading colours (shared look: tdc-shared.css) */
+.tdc-gh.g911,.tdc-gh.late{--gc:var(--late);--gc-soft:var(--late-soft)}
+.tdc-gh.nnd{--gc:var(--hold);--gc-soft:var(--hold-soft)}
+.tdc-gh.rdy{--gc:var(--ready);--gc-soft:var(--ready-soft)}
+.tdc-gh:not(.g911):not(.late):not(.nnd):not(.rdy):not(.cathead){--gc:var(--new);--gc-soft:var(--new-soft)}
+html .tdc-gh:has(.kdot)::before{display:none!important}
+@media (pointer:coarse) and (max-width:640px){html #who{width:84px!important}}
+</style>
 <style>
 /* Layout: one working column. Sticky header with who's-working + tabs; Cases list grouped by due date; case detail opens as a sheet with the step checklist on top */
 :root{
@@ -38,21 +46,21 @@ header #setupBtn[aria-pressed="true"]{background:var(--hb-set);border-color:var(
   --k0:#0f7c80; --k1:#7a4fb5; --k2:#c2417a; --k3:#b7791f; --k4:#2f6fd0; --k5:#3d8b3d; --k6:#8a5a3b; --k7:#5b6b7a;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#11191c; --surface:#18242a; --sunk:#1f2e34; --line:#2d3e45;
-  --fg:#e5ebe7; --muted:#9aa69f; --slate:#dbe4e4;
-  --accent:#9cad72; --accent-fg:#141b10; --accent-soft:#2a3322;
-  --out:#8fb4e0; --out-soft:#1c2c40;
-  --prog:#93b4ff; --prog-soft:#1d2645; --ready:#7fd08b; --ready-soft:#16301f;
-  --hold:#f0a94a; --hold-soft:#3a2a12; --late:#ff8f87; --late-soft:#3d1c19; --new:#9aa39c; --new-soft:#24323a; color-scheme:dark;
+  --bg:#11191C; --surface:#18242A; --sunk:#1F2E34; --line:#2D3E45;
+  --fg:#E5EBE7; --muted:#9AA69F; --slate:#dbe4e4;
+  --accent:#A8B680; --accent-fg:#11191C; --accent-soft:#323E39;
+  --out:#84AAD1; --out-soft:#293C4A;
+  --prog:#93b4ff; --prog-soft:#1d2645; --ready:#47BB5B; --ready-soft:#204032;
+  --hold:#F58500; --hold-soft:#403522; --late:#E98680; --late-soft:#413336; --new:#96A9AD; --new-soft:#2E3C42; color-scheme:dark;
   --k0:#4fc3c7; --k1:#b896ef; --k2:#f07bae; --k3:#e8b35a; --k4:#7fa8ff; --k5:#7fcf7f; --k6:#d29a72; --k7:#a3b3c2;
 }}
 :root[data-theme="dark"]{
-  --bg:#11191c; --surface:#18242a; --sunk:#1f2e34; --line:#2d3e45;
-  --fg:#e5ebe7; --muted:#9aa69f; --slate:#dbe4e4;
-  --accent:#9cad72; --accent-fg:#141b10; --accent-soft:#2a3322;
-  --out:#8fb4e0; --out-soft:#1c2c40;
-  --prog:#93b4ff; --prog-soft:#1d2645; --ready:#7fd08b; --ready-soft:#16301f;
-  --hold:#f0a94a; --hold-soft:#3a2a12; --late:#ff8f87; --late-soft:#3d1c19; --new:#9aa39c; --new-soft:#24323a; color-scheme:dark;
+  --bg:#11191C; --surface:#18242A; --sunk:#1F2E34; --line:#2D3E45;
+  --fg:#E5EBE7; --muted:#9AA69F; --slate:#dbe4e4;
+  --accent:#A8B680; --accent-fg:#11191C; --accent-soft:#323E39;
+  --out:#84AAD1; --out-soft:#293C4A;
+  --prog:#93b4ff; --prog-soft:#1d2645; --ready:#47BB5B; --ready-soft:#204032;
+  --hold:#F58500; --hold-soft:#403522; --late:#E98680; --late-soft:#413336; --new:#96A9AD; --new-soft:#2E3C42; color-scheme:dark;
   --k0:#4fc3c7; --k1:#b896ef; --k2:#f07bae; --k3:#e8b35a; --k4:#7fa8ff; --k5:#7fcf7f; --k6:#d29a72; --k7:#a3b3c2;
 }
 :root[data-theme="light"]{color-scheme:light}
@@ -1164,7 +1172,7 @@ const logAdd=(c,what)=>[...(c.log||[]),{at:Date.now(),by:getMe()||"?",what}].sli
 
 /* ---------- writes ---------- */
 let toastT;
-function toast(msg){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},3200)}
+function toast(msg){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast tdc-toast";t.setAttribute("role","status");document.body.appendChild(t)}t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},3200)}
 function writeFail(e){toast(e&&(e.code==="permission-denied"||e.code==="not_granted")?"You can view this page but not change it. Ask the owner for Contributor access.":"That didn't save. Check your connection and try again.")}
 function needDb(){if(!S.db){toast("Sign in to save changes.");return false}return true}
 function sync(state,txt){$("#dot").className="dot "+state;$("#syncTxt").textContent=txt}
@@ -1300,7 +1308,7 @@ const TILE_IC={active:"active",out:"truck",overdue:"alert",ready:"ready",hold:"p
 /* phones: More sheet for what doesn't fit in the bottom tab bar */
 function closeMore(){$("#moreDlg")?.remove()}
 function openMore(){if($("#moreDlg"))return;
-  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap sheet" id="moreDlg"><div class="dlg" role="dialog" aria-modal="true" aria-label="More"><div class="sheethead"><h3>More</h3><button class="btn" type="button" data-more-go="close">Close</button></div><button class="btn pri mgo" type="button" data-more-go="new">${ic("plus")}New case</button><button class="btn mgo" type="button" data-more-go="all">${ic("list")}All cases</button><button class="btn mgo" type="button" data-more-go="setup">${ic("gear")}Setup</button><div class="halfrow"><button class="btn mgo" type="button" data-more-go="snd">${ic("sound")}Sound</button><button class="btn mgo" type="button" data-more-go="theme">${ic("moon")}Theme</button></div></div></div>`)}
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap sheet tdc-scrim tdc-sheet" id="moreDlg"><div class="dlg tdc-dialog" role="dialog" aria-modal="true" aria-label="More"><div class="sheethead"><h3>More</h3><button class="btn" type="button" data-more-go="close">Close</button></div><button class="btn pri mgo" type="button" data-more-go="new">${ic("plus")}New case</button><button class="btn mgo" type="button" data-more-go="all">${ic("list")}All cases</button><button class="btn mgo" type="button" data-more-go="setup">${ic("gear")}Setup</button><div class="halfrow"><button class="btn mgo" type="button" data-more-go="snd">${ic("sound")}Sound</button><button class="btn mgo" type="button" data-more-go="theme">${ic("moon")}Theme</button></div></div></div>`)}
 document.addEventListener("click",ev=>{const t=ev.target;if(!t.closest)return;
   if(t.closest("[data-more]")){openMore();return}
   if(t.id==="moreDlg"){closeMore();return}
@@ -1395,7 +1403,7 @@ function renderList(){
     cats=cats.map((c,i)=>({...c,id:"cat-"+i,n:c.subs.reduce((a,s)=>a+s.cs.length,0)})).filter(c=>c.n);
     const many=cats.length>1;
     el.innerHTML=`${many?`<div class="catjump" aria-label="Jump to">${cats.map(c=>`<button data-jump="${c.id}">${c.k!==undefined?`<i class="kdot" data-k="${c.k}"></i> `:""}${esc(c.name)}<span>${c.n}</span></button>`).join("")}</div>`:""}
-      <div class="list">${cats.map(c=>`<div class="grp cathead" id="${c.id}"><span class="gname">${c.k!==undefined?`<i class="kdot" data-k="${c.k}"></i>`:""}${esc(c.name)}</span><span>${c.n}</span></div>${c.subs.map(s=>`${s.name&&(c.subs.length>1||s.name!==c.name)?`<div class="grp subhead"><span class="gname">${s.k!==undefined?`<i class="kdot" data-k="${s.k}"></i>`:""}${esc(s.name)}</span><span>${s.cs.length}</span></div>`:""}${sortRows(s.cs).map(caseRow).join("")}`).join("")}`).join("")}</div>${more}`;
+      <div class="list">${cats.map(c=>`<div class="grp cathead tdc-gh" id="${c.id}"><span class="gname">${c.k!==undefined?`<i class="kdot" data-k="${c.k}"></i>`:""}${esc(c.name)}</span><span class="tdc-gcount">${c.n}</span></div>${c.subs.map(s=>`${s.name&&(c.subs.length>1||s.name!==c.name)?`<div class="grp subhead tdc-gsub"><span class="gname">${s.k!==undefined?`<i class="kdot" data-k="${s.k}"></i>`:""}${esc(s.name)}</span><span>${s.cs.length}</span></div>`:""}${sortRows(s.cs).map(caseRow).join("")}`).join("")}`).join("")}</div>${more}`;
     return;
   }
   let groups;
@@ -1408,7 +1416,7 @@ function renderList(){
   }else{
     groups=[[S.fState==="delivered"?"Delivered":S.fState==="cancelled"?"Cancelled":"All cases",rows.sort(histOrder)]];
   }
-  el.innerHTML=`<div class="list">${groups.filter(g=>g[1].length).map(([n,cs,cls])=>`<div class="grp${cls?" "+cls:""}">${n}<span>${cs.length}</span></div>${cs.map(caseRow).join("")}`).join("")}</div>${more}`;
+  el.innerHTML=`<div class="list">${groups.filter(g=>g[1].length).map(([n,cs,cls])=>`<div class="grp tdc-gh${cls?" "+cls:""}" data-gk="${esc(n)}"><span>${n}</span><span class="tdc-gcount">${cs.length}</span></div>${cs.map(caseRow).join("")}`).join("")}</div>${more}`;
 }
 function legend(){
   return "";
@@ -1437,7 +1445,7 @@ const PH_HELP={
   new:"Fill in the patient, case type and dates. The steps for that case type are added for you, and the ready-by date is worked out from the delivery date.",
   setup:"Team initials, labs, case types, materials and other settings for this office."};
 function phParts(key){const text=PH_HELP[key];if(S.phKey!==key){S.phKey=key;S.phOpen=false}if(!text)return {btn:"",sub:""};
-  return {btn:`<button type="button" class="phinfo" data-phinfo aria-expanded="${!!S.phOpen}" aria-controls="phSub" aria-label="About this page" title="About this page">i</button>`,
+  return {btn:`<button type="button" class="phinfo tdc-info" data-phinfo aria-expanded="${!!S.phOpen}" aria-controls="phSub" aria-label="About this page" title="About this page">i</button>`,
           sub:`<p class="phsub" id="phSub"${S.phOpen?"":" hidden"}>${esc(text)}</p>`}}
 function viewCases(){
   const ph=phParts(S.fQuick||S.fState||"open");
@@ -1578,7 +1586,7 @@ async function sendPhotos(cid,only){const c=caseOf(cid);const all=S.photos[cid]|
   catch(e){if(e&&e.name==="AbortError")return}
   closePhoto();$("#phSendDlg")?.remove();
   const mail=lab&&lab.email?`mailto:${encodeURIComponent(lab.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text+"\n\nPhotos attached.\n")}`:"";
-  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="phSendDlg"><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="phsT"><h3 id="phsT">Send ${pl(list.length,"photo")}${lab?" to "+esc(lab.name):""}</h3>
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap tdc-scrim" id="phSendDlg"><div class="dlg tdc-dialog" role="dialog" aria-modal="true" aria-labelledby="phsT"><h3 id="phsT">Send ${pl(list.length,"photo")}${lab?" to "+esc(lab.name):""}</h3>
     <p>This device can't share files directly. Save the photos, then attach them to an email${lab&&lab.email?"":" or upload them to the lab's portal"}.</p>
     <div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" data-phsave>${ic("save")}Save photos</button>${mail?`<a class="btn" href="${mail}" data-phmail>${ic("mail")}Email ${esc(lab.email)}</a>`:""}<button class="btn" type="button" data-copy="${esc(text)}">Copy case details</button></div>
     <div class="actions"><button class="btn" type="button" data-phsendclose>Close</button></div></div></div>`);
@@ -1628,7 +1636,7 @@ function closeLabel(){$("#lblDlg")?.remove()}
 async function caseLabel(cid){const c=caseOf(cid);if(!c)return;
   if(!(await loadQr())){toast("Couldn't load the QR code maker. Check the internet connection and try again.");return}
   closeLabel();const L=lblPick();
-  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="lblDlg"><div class="dlg wide" role="dialog" aria-modal="true" aria-labelledby="lblT">
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap tdc-scrim" id="lblDlg"><div class="dlg wide tdc-dialog" role="dialog" aria-modal="true" aria-labelledby="lblT">
     <div class="sheethead"><h3 id="lblT">Case label</h3><button class="btn" type="button" data-lblclose>Close</button></div>
     <div class="f"><label for="lblSize">Label printer and size</label><select id="lblSize">${LABELS.map(l=>`<option value="${l.id}"${l.id===L.id?" selected":""}>${esc(l.name)}</option>`).join("")}</select></div>
     <div class="lblprev" id="lblPrev">${caseLabelHtml(c,L)}</div>
@@ -1685,7 +1693,7 @@ function renderPanel(){
   const ni=nx?steps.indexOf(nx):-1;
   const prev=root.querySelector(".panel"),keep=prev?.scrollTop||0;
   /* slide in only when the sheet opens, not on every redraw */
-  root.innerHTML=`<div class="scrim" data-scrim><div class="panel${prev?"":" enter"}" role="dialog" aria-modal="true" aria-labelledby="ph-t">
+  root.innerHTML=`<div class="scrim tdc-scrim" data-scrim><div class="panel${prev?"":" enter"}" role="dialog" aria-modal="true" aria-labelledby="ph-t">
     <div class="ph"><div><h2 id="ph-t">${esc(c.patient||"Patient")}${c.chart?` <span class="pc">#${esc(c.chart)}</span>`:""}${c.patNum?` <span class="pc" title="Open Dental patient number">Pt #${esc(c.patNum)}</span>`:""}${c.dob?` <span class="pc">DOB ${esc(fmtDOB(c.dob))}</span>`:""}</h2>
       <div class="sub" data-s="${st}"><span class="pill type${c.od&&!c.type?" needtype":""}" data-k="${typeK(c)}"><i class="kdot"></i>${esc(typeName(c))}</span>${c.teeth&&c.teeth.length?`<span class="teeth">${esc(teethLabel(c.teeth))}</span>`:""}<span class="pill labp" data-k="${kIndex("lab:"+(c.lab||"inhouse"))}">${esc(labName(c.lab))}</span>${sendPill(c)}<span class="pill st">${STAGE[st]}</span>${late?'<span class="pill late">Overdue</span>':""}${c.rush?'<span class="pill rush">Rush</span>':""}</div>
       <p class="hint" style="margin-top:6px">Created by <span class="init">${esc(c.createdBy==="OD"?"Open Dental":c.createdBy||"?")}</span> · ${esc(fmtDT(c.createdAt))}</p>${odNote(c)}</div>
@@ -1789,7 +1797,7 @@ async function askDelCases(){
   let n;try{n=(await S.db.collection("cases").get()).docs.length}catch(e){writeFail(e);return}
   if(!n){toast("There are no cases to delete.");return}
   closeDelCases();
-  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap" id="delcasesDlg"><div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Are you sure?</h3><p id="delcD">This permanently deletes ${pl(n,"case")} for everyone in the office. Their photos are deleted too. Labs, team, case types, lists and the logo are kept. This can't be undone.</p><div class="actions"><button class="btn" type="button" data-delcases-no id="delcNo">Cancel</button><button class="btn danger solid" type="button" data-delcases-go>Yes, delete all cases</button></div></div></div>`);
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap tdc-scrim" id="delcasesDlg"><div class="dlg tdc-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Are you sure?</h3><p id="delcD">This permanently deletes ${pl(n,"case")} for everyone in the office. Their photos are deleted too. Labs, team, case types, lists and the logo are kept. This can't be undone.</p><div class="actions"><button class="btn" type="button" data-delcases-no id="delcNo">Cancel</button><button class="btn danger solid" type="button" data-delcases-go>Yes, delete all cases</button></div></div></div>`);
   $("#delcNo").focus()}
 async function runDelCases(btn){
   if(delBusy)return;delBusy=true;btn.disabled=true;btn.textContent="Deleting…";$("#delcNo").disabled=true;
