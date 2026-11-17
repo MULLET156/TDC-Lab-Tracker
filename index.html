@@ -1822,12 +1822,12 @@ function viewSetup(){
       <div class="f"><span class="lbl">Steps, in order</span>${stepEditor(t.steps,t.id)}</div>
       <div class="actions"><button class="btn sm danger${S.arm==="type"+t.id?" armed":""}" data-deltype="${esc(t.id)}">${S.arm==="type"+t.id?"Tap again to remove":"Remove case type"}</button></div>
     </div></details></div>`).join("")}</div>
+  <div class="actions restorerow"><button class="btn sm${S.arm==="restore"?" danger armed":""}" data-restore>${S.arm==="restore"?"Tap again to restore defaults":"Restore default case types"}</button><span class="hint">Puts back the built-in case types and steps. Cases already made keep theirs.</span></div>
+  ${viewMaterials()}
+
+  ${viewLabs()}
   <div class="card" data-tid="__out"><h3>Outside lab</h3><div class="f"><span class="lbl">Steps for cases sent to an outside lab, in order</span>${stepEditor(OUTSTEPS(),"__out")}</div>
   </div>
-  <div class="actions restorerow"><button class="btn sm${S.arm==="restore"?" danger armed":""}" data-restore>${S.arm==="restore"?"Tap again to restore defaults":"Restore default case types"}</button><span class="hint">Puts back the built-in case types and steps. Cases already made keep theirs.</span></div>
-  ${viewLabs()}
-
-  ${viewMaterials()}
 
   ${logoHTML()}
   ${tilesHTML()}
