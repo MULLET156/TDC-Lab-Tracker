@@ -1808,6 +1808,26 @@ async function runDelCases(btn){
     S.photos={};delBusy=false;closeDelCases();toast("All cases were deleted.");render(true)}
   catch(e){delBusy=false;closeDelCases();writeFail(e)}}
 document.addEventListener("keydown",ev=>{if(ev.key==="Escape")closeDelCases()});
+/* Free up space (like the Maintenance Tracker): delivered / cancelled cases closed before the cutoff, with their photos */
+const closedOn=c=>(c.state==="delivered"&&c.deliveredAt)?c.deliveredAt:c.updatedAt?iso(new Date(c.updatedAt)):c.createdAt?iso(new Date(c.createdAt)):"";
+let oldIds=[];
+async function askFreeUp(){
+  if(delBusy||!needDb())return;
+  const months=+($("#oldAge")?.value||12),d=new Date();d.setMonth(d.getMonth()-months);const cut=iso(d);
+  let docs;try{docs=(await S.db.collection("cases").get()).docs}catch(e){writeFail(e);return}
+  oldIds=docs.map(x=>({id:x.id,...x.data()})).filter(c=>(c.state==="delivered"||c.state==="cancelled")&&closedOn(c)&&closedOn(c)<cut).map(c=>c.id);
+  if(!oldIds.length){toast("No delivered or cancelled cases are that old.");return}
+  closeDelCases();
+  document.body.insertAdjacentHTML("beforeend",`<div class="dlgwrap tdc-scrim" id="delcasesDlg"><div class="dlg tdc-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delcT" aria-describedby="delcD"><h3 id="delcT">Remove old cases?</h3><p id="delcD">This permanently removes ${pl(oldIds.length,"case")} delivered or cancelled before ${esc(new Date(cut+"T12:00").toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}))}, with their photos, for everyone in the office. They can't be brought back except from a backup.</p><div class="actions"><button class="btn" type="button" id="delcNo" data-delcases-no>Keep them</button><button class="btn danger solid" type="button" data-freeup-go>Remove ${pl(oldIds.length,"case")}</button></div></div></div>`);
+  $("#delcNo").focus()}
+async function runFreeUp(btn){
+  if(delBusy||!oldIds.length)return;delBusy=true;btn.disabled=true;btn.textContent="Removing…";$("#delcNo").disabled=true;
+  const ids=oldIds.slice();
+  try{for(const id of ids)await deleteCasePhotos(id);
+    for(let i=0;i<ids.length;i+=50){const part=ids.slice(i,i+50);
+      if(typeof TDC!=="undefined"&&TDC.batch)await TDC.batch(part.map(id=>({op:"delete",col:"cases",id})));else for(const id of part)await S.db.doc("cases/"+id).delete()}
+    oldIds=[];delBusy=false;closeDelCases();toast(pl(ids.length,"old case")+" removed.");render(true)}
+  catch(e){delBusy=false;closeDelCases();writeFail(e)}}
 /* Dashboard tiles: the code the TDC Dental Dashboard uses to read this app's three tiles (TDC-Office-Plan CONTRACT §5b).
    The code itself stays on the server; the page only learns whether it's on until someone copies it. */
 const hasTiles=()=>typeof TDC!=="undefined"&&!!TDC.tileToken;
@@ -1872,6 +1892,8 @@ function viewSetup(){
       <div class="actions"><button class="btn" type="button" data-pick="import">Choose file…</button></div>${imp}</div>
   </div>
   <div class="sechead"><h2>Delete cases</h2></div>
+  <div class="card"><h3>Free up space</h3><p class="hint">Removes delivered and cancelled cases, with their photos, once they're older than the time you pick. Open cases and cases on hold are never touched. Make a full backup first if you might need them.</p>
+    <div class="actions"><div class="f"><label for="oldAge">Delivered or cancelled more than</label><select id="oldAge"><option value="6">6 months ago</option><option value="12" selected>1 year ago</option><option value="24">2 years ago</option></select></div><button class="btn" type="button" data-freeup style="align-self:end">Remove old cases</button></div></div>
   <div class="card"><p class="hint">Deletes every case, including delivered and cancelled ones, and keeps your labs, team, case types, lists and logo.</p><div class="actions"><button class="btn danger" type="button" data-delcases>Delete all cases</button></div></div>`;
 }
 /* Case options boxes: dragged order is kept in settings/lists.optOrder; case details can be deleted from their row */
@@ -2192,6 +2214,8 @@ document.addEventListener("click",async ev=>{
   if(ds.logoclear){const k=ds.logoclear==="d"?"d":"l";if(!needDb())return;try{await S.db.doc("settings/logo-"+(k==="l"?"light":"dark")).delete();S.logo[k]=null;applyLogo();render(true);toast(k==="l"?"Logo removed.":"Dark mode logo removed.")}catch(e){writeFail(e)}return}
   if(ds.tile){tileAct(ds.tile);return}
   if(ds.delcases!==undefined){askDelCases();return}
+if(ds.freeup!==undefined){askFreeUp();return}
+if(ds.freeupGo!==undefined){runFreeUp(b);return}
   if(ds.delcasesNo!==undefined){closeDelCases();return}
   if(ds.delcasesGo!==undefined){runDelCases(b);return}
   if(ds.expjson!==undefined){const strip=o=>JSON.parse(JSON.stringify(o));save(`TDC lab cases backup ${todayISO()}.json`,JSON.stringify({app:"tdc-lab-cases",version:1,exportedAt:new Date().toISOString(),team:S.team,types:{types:TYPES(),outSteps:OUTSTEPS(),fieldDefs:FDEFS()},lists:listsNow(),colors:S.colors,labs:strip(S.labs),cases:strip(S.cases)},null,2));return}
